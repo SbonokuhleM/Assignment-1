@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.32">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>a1-ds4i---workings</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="A1 DS4I - Workings_files/libs/clipboard/clipboard.min.js"></script>
+<script src="A1 DS4I - Workings_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="A1 DS4I - Workings_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="A1 DS4I - Workings_files/libs/quarto-html/popper.min.js"></script>
+<script src="A1 DS4I - Workings_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="A1 DS4I - Workings_files/libs/quarto-html/anchor.min.js"></script>
+<link href="A1 DS4I - Workings_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="A1 DS4I - Workings_files/libs/quarto-html/quarto-syntax-highlighting-37eea08aefeeee20ff55810ff984fec1.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="A1 DS4I - Workings_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="A1 DS4I - Workings_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="A1 DS4I - Workings_files/libs/bootstrap/bootstrap-bb462d781dde1847d9e3ccf7736099dd.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<script src="A1 DS4I - Workings_files/libs/kePrint-0.0.1/kePrint.js"></script>
+
+<link href="A1 DS4I - Workings_files/libs/lightable-0.0.1/lightable.css" rel="stylesheet">
+
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<div style="page-break-after: always;"></div>
+<section id="abstract" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Abstract</h1>
+<p>This paper investigates the use of neural networks to predict observed avalanches one day in advance. The study utilizes a 15-year archive of avalanche forecasts and develops four neural network models. The first model, which incorporated all available variables, achieved an accuracy of 74.59%. However, despite this moderate performance, the model exhibited weak precision and recall for the moderate and High class, making it unsuitable for practical application. The remaining models were trained on subsets of predictors. Predictor Set 1 (<em>Longitude:Incline</em>) achieved an accuracy of 74,82% but suffered from poor precision and recall across moderate and high classes. Predictor Set 2 (<em>Air.Temp:Summit.Wind.Speed</em>) performed marginally better at 74.89%, though its precision and recall remained low for the minor classes. Predictor Set 3 (<em>Max.Temp.Grad:Snow.Temp</em>) obtained the highest accuracy at 75.11% from the three, yet it too was limited by weak recall and precision on the minority classes. The overall imperfectness in performance of the models is largely attributable to class imbalance in the dataset, as severe avalanche conditions were rare, leading the models to bias toward the more frequent classes. Similar challenges related to class imbalance in avalanche prediction models have been highlighted in recent work by <a href="https://www.researchgate.net/publication/387372340_Addressing_class_imbalance_in_avalanche_forecasting">Manish K (2024)</a>.</p>
+</section>
+<section id="introduction" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Introduction</h1>
+<p>An avalanche is when a mass of material rapidly moves down a slope. It usually happens when material breaks loose from the slope, and as it moves, it gathers more material on the way down. There are different varieties of them, namely rock, ice and debris avalanches <a href="https://www.britannica.com/science/avalanche">(Karl W. Birkeland, 2025)</a>. This study aims to analyse and predict the observed avalanche hazard occurrences of ice avalanches in Scotland using Neural networks.</p>
+<p>Avalanches pose significant risks to safety, infrastructure, and recreational activities in mountainous regions. avalanche forecasting is important for mitigating these risks. While expert forecasters combine field observations, weather data, and snowpack tests to generate daily forecasts, these methods are time intensive and heavily rely on human expertise. With the availability of a 15-year archive of avalanche forecasts from the <a href="https://www.sais.gov.uk/">Scottish Avalanche Information Service</a> (SAIS), there is an opportunity to build a predictive model that can supplement expert judgement. The challenge lies in effectively using historical data, including forecast and observed avalanche hazards, geographic and topographic factors, weather variables, and snowpack integrity measures to predict avalanche hazard levels. Developing such a model can improve the consistency and efficiency of avalanche forecasts and enhance public safety in Scotland.</p>
+<section id="study-area" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="study-area"><span class="header-section-number">2.1</span> Study Area</h2>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images/scotland_area.png" class="img-fluid figure-img" width="364"></p>
+<figcaption>Study area in Scotland</figcaption>
+</figure>
+</div>
+</section>
+<section id="problem-statement" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="problem-statement"><span class="header-section-number">2.2</span> Problem Statement</h2>
+<p>Avalanches in Scotland pose a significant risk to human life, infrastructure, and the environment, particularly in mountainous areas frequented by hikers, skiers, and local communities. Current avalanche forecasts rely heavily on expert judgment, which combines field observations of snow conditions, weather forecasts, and historical data. However, these forecasts can be limited by human bias, inconsistencies in data interpretation, and gaps in spatial coverage.</p>
+</section>
+</section>
+<section id="literature-review" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Literature Review</h1>
+<p>Avalanche hazard assessments rely on observations of avalanches, snowpack, weather and terrain they require integrating a complex array of data and evidence to produce a forecast with considerable uncertainty, Avalanche forecasters strive to minimize this uncertainty by assimilating data and evidence accumulated incrementally over time <a href="doi:10.1017/s0022143000010601">LaChapelle (1980)</a>.</p>
+<p>Avalanche hazard forecasting has been the subject of extensive research over the years, with a range of methodological approaches developed to address the problem.On a study conducted by <a href="https://doi.org/10.1016/j.coldregions.2013.08.009">Hendrikx J et.al (2014)</a> Avalanches was forecasted using classification trees, which performed relatively well due to the ability of these statistical methods to learn from data and optimize class separation through a hierarchy of decision rules.</p>
+<p><a href="https://doi.org/10.5194/tc-17-2245-2023">L. Viallon-Galinier et al.&nbsp;(2023)</a> conducted a study that integrated modelled snowpack stability with machine learning techniques for avalanche forecasting. The approach combined historical avalanche records with snow cover and snow stability simulations to enhance predictive performance. While the inclusion of mechanically based stability indices improved detection rates, the study also emphasized the substantial class imbalance arising from the rarity of avalanche events.It is also important to note that most statistical approaches to avalanche forecasting struggle to adequately address the issue of class imbalance arising from the rarity of avalanche events <a href="https://www.researchgate.net/publication/387372340_Addressing_class_imbalance_in_avalanche_forecasting">Manish K (2024)</a></p>
+<p>Neural Nertworks are a result of scientific studies that aimed to study the activity of the human brain first given light to by <a href="http://www.nlpinfocentre.com/downloads/apr2014/(Ebook)%20James,%20William%20-%20The%20Principles%20Of%20Psychology%20Vol%20I.pdf">J .William (1890)</a> Artifitial Neural Nertworks were first introduced by <a href="https://link.springer.com/article/10.1007/BF02478259">Warren S. McCulloch &amp; Walter Pitts, (1943)</a>. In 1949, Donald Hebb introduced <a href="https://archive.org/details/in.ernet.dli.2015.226341/page/n1/mode/2up">Hebbian Learning</a> , a straightforward learning rule for ANNs. In 1951, Marvin Minsky created the first ANN the SNARC Solver. Frank Rosenblatt developed the perceptron in 1958, which was an attempt to use neural network procedures for character recognition. Despite its success, the perceptron faced problems when it came to handling non-linearly separable data.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="images/colored_neural_network.svg.png" class="img-fluid figure-img" width="274"></p>
+<figcaption>Neural Network</figcaption>
+</figure>
+</div>
+</section>
+<section id="data-description" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Data Description</h1>
+<p>The dataset used in this study consists of avalanche and snowpack observations collected in the Scottish Highlands. Original dataset covers a period of multiple winter seasons and contains a total of 10671 recorded observations and 34 features. Each observation corresponds to a set of environmental and snowpack measurements taken at specific locations, with associated temporal and spatial information.</p>
+<p>The data include both numerical and categorical variables. Numerical variables capture continuous measurements such as air temperature (°C), summit air temperature (°C), altitude (m), wind speed (m/s), total snow depth (cm), snow temperature (°C), and slope incline (degrees). Several of these are directional or circular in nature, for example aspect (degrees), summit wind direction (degrees), and wind direction (degrees), which take values between 0° and 360°. Categorical variables describe snowpack characteristics and weather codes, such as precipitation code, snow crystal type, snow hardness gradients, rain at 900, and wetness categories. Spatial variables such as latitude and longitude are also included, enabling the linking of measurements to specific locations within the study area.</p>
+<p>Before cleaning, the dataset showed irregularities such as missing values, inconsistent coding (e.g., empty strings in categorical fields), and implausible measurements like negative snow depths or unusually high wind speeds. These irregularities will be addressed during the data cleaning process.</p>
+</section>
+<section id="data-cleaning" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Data Cleaning</h1>
+<section id="initial-screening" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="initial-screening"><span class="header-section-number">5.1</span> Initial Screening</h2>
+<p>The raw data contained clear data quality issues, such as negative values in snowpack measurements, impossible altitude values (greater than 2000 m, while Scottish mountains are lower), or wind speeds exceeding realistic thresholds. Categorical variables also included empty strings or ambiguous encodings</p>
+<p>Two features exhibited the highest proportion of missing values in the dataset: <em>AV.Cat</em> (23.37%) and <em>Ski.Pen</em> (22.53%). Upon inspection, <em>AV.Cat</em> contained numerous invalid or out-of-range codes (e.g., 8800, 5031, -9999), indicating coding errors or placeholders for missing data, so it was dropped. The <em>Ski.Pen</em> variable, while mostly numeric, also contained sentinel values (e.g., -1) and a substantial number of missing entries, so it too was dropped. All rows with missing values in the target variable <em>OAH</em> were removed to ensure model training and evaluation used only known outcomes.</p>
+</section>
+<section id="standardisation-of-variable-types" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="standardisation-of-variable-types"><span class="header-section-number">5.2</span> Standardisation of Variable Types</h2>
+<p>Categorical variables such as <em>Area</em>, <em>Drift</em>, <em>Rain at 900 m</em>, and <em>Hardness Grades</em> were explicitly converted to factors, while ordered categories (e.g., hardness grades) were encoded with a natural ordering. Temporal information was converted into a consistent date-time format. Continuous variables (e.g., temperature, snow depth, wind speed) were retained as numeric values.</p>
+<section id="sanitation-of-numerical-ranges" class="level3 notoc" data-number="5.2.1">
+<h3 class="notoc anchored" data-number="5.2.1" data-anchor-id="sanitation-of-numerical-ranges"><span class="header-section-number">5.2.1</span> Sanitation of Numerical Ranges</h3>
+<p>To ensure numerical plausibility, a cleaning function was applied to replace values outside reasonable ranges with NA. For example:</p>
+<ul>
+<li><p>Altitude values were restricted to 0–2000 m.</p></li>
+<li><p>Aspect and wind direction values were adjusted to fall within 0–360°.</p></li>
+<li><p>Cloud cover percentages were constrained between 0–100.</p></li>
+<li><p>Inclination angles were limited to 0–90°.</p></li>
+<li><p>Snow and air temperatures were bounded between -30 °C and 10 °C.</p></li>
+<li><p>Total snow depth was capped at 1000 cm.</p></li>
+<li><p>Wind speed values were capped at 150 mph to remove implausible outliers.</p></li>
+</ul>
+</section>
+</section>
+<section id="handling-missing-values" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="handling-missing-values"><span class="header-section-number">5.3</span> Handling Missing Values</h2>
+<p>After data sanitation, variables with significant missingness (e.g., <em>Summit Wind Direction, Crystals, Summit Wind Speed</em>) were carefully reviewed. Additionally, variables deemed uninformative for the analysis (such as <em>Location, Obs</em> and <em>OSgrid</em>) were dropped. Removing all rows with missing values resulted in a dataset of approximately 6,800 complete observations (from an initial ~10,600). Duplicate records were also checked for, and none were found. This reduction was expected, as cleaning removed implausible and incomplete records. Given the sufficient size of the cleaned dataset, imputation was not performed.</p>
+</section>
+</section>
+<section id="exploratory-data-analysis-eda" class="level1 unnumbered">
+<h1 class="unnumbered">Exploratory Data Analysis (EDA)</h1>
+<p>The exploratory data analysis (EDA) aims to summarize the main characteristics of the dataset, uncover patterns, detect anomalies, and identify relationships between variables. This process provides insights that guide further modelling and feature engineering.</p>
+</section>
+<section id="univariate-exploration" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Univariate Exploration</h1>
+<section id="numerical-variables" class="level2" data-number="6.1">
+<h2 data-number="6.1" class="anchored" data-anchor-id="numerical-variables"><span class="header-section-number">6.1</span> Numerical Variables</h2>
+<p>A detailed five-point summary of all continuous variables is provided in the Appendix, see <a href="#tbl-summary-numeric" class="quarto-xref">Table&nbsp;1</a>. Here we comment on the summary, the key ranges and any obvious anomalies. We also give a comment on the boxplots in <a href="#fig-summary-numeric" class="quarto-xref">Figure&nbsp;1</a>.</p>
+<p>The summary of the numeric variables in the dataset reveals notable patterns in their distributions. Air temperature (<em>Air Temp</em>) ranges from -10.8°C to 14°C with a median of -0.4°C, indicating generally cold conditions, while altitude (<em>Alt</em>) spans from 113 m to 1,300 m, with most observations clustered around 920 m. Variables such as <em>Crystals</em> and <em>Snow Index</em> are highly skewed, with medians of 0, showing that most observations recorded no crystals or snow index. Other variables, including <em>Foot Pen</em> and <em>Total Snow Depth</em>, exhibit long upper tails, with extreme maximum values of 120 cm and 590 cm, respectively. Snow and wind-related variables, such as <em>Summit Wind Speed</em> and <em>Wind Speed</em>, show considerable spread, with maximums far exceeding typical values (355 mph and 110 mph, respectively), suggesting occasional extreme events. Overall, the means generally reflect the central tendency but are influenced by these extreme observations, highlighting the importance of visualizing distributions alongside summary statistics to fully understand the data.</p>
+<p><a href="#fig-summary-numeric" class="quarto-xref">Figure&nbsp;1</a> shows boxplots for all numeric features in the avalanche dataset. Several variables, such as <em>Foot Pen</em>, <em>Summit Wind Speed,</em> and <em>Total Snow Depth</em>, exhibit extreme outliers and skewed distributions, indicating rare but significant events. Others, like <em>Air.Temp</em> and <em>Incline</em> display more symmetric distributions with fewer extreme points. Zero-inflated features such as <em>Crystals</em>, <em>Max.Temp.Grad</em>, and <em>Snow.Index</em> suggest frequent absence of measurements or specific avalanche conditions. The colour-coded outliers (mild vs.&nbsp;extreme) help highlight deviations from the typical range, which may warrant further investigation or transformation prior to modelling.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-summary-numeric" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-summary-numeric-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="A1-DS4I---Workings_files/figure-html/fig-summary-numeric-1.png" class="img-fluid figure-img" width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-summary-numeric-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Facetted boxplots of all the numeric variables, highlighting mild (orange) and extreme (red) outliers. Outliers were defined based on the interquartile range (IQR): values beyond 1.5×IQR from Q1 or Q3 are mild, and values beyond 3×IQR are extreme.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div style="page-break-after: always;"></div>
+<section id="outliers" class="level3" data-number="6.1.1">
+<h3 data-number="6.1.1" class="anchored" data-anchor-id="outliers"><span class="header-section-number">6.1.1</span> Outliers</h3>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div id="fig-barplot-outliers" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-align="center">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-barplot-outliers-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="A1-DS4I---Workings_files/figure-html/fig-barplot-outliers-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="480">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-barplot-outliers-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Number of extreme outliers per variable, based on the IQR rule; extreme means beyond 3×IQR.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Most variables have few extreme outliers based on the IQR rule. The only exceptions are the zero-inflated variables <em>Crystals</em> and <em>Snow.Index</em>. Outliers are minimal relative to the dataset size. All features will be standardized, and outliers will be reassessed in the transformed space. Overall, outliers are unlikely to significantly affect the analysis.</p>
+<p><strong>Note:</strong> Although correlation plots are typically presented after examining individual feature distributions, the correlation plot is shown first here for better organization and to avoid leaving large areas of white space.</p>
+</section>
+<section id="correlation" class="level3" data-number="6.1.2">
+<h3 data-number="6.1.2" class="anchored" data-anchor-id="correlation"><span class="header-section-number">6.1.2</span> Correlation</h3>
+<p>The correlation analysis shows that most variables are weakly correlated, with the exception of the temperature-related variables (e.g., <em>Air.Temp</em>, <em>Snow.Temp</em>, <em>Summit.Air.Temp</em>), which display moderate positive correlations. Notably, <em>Air.Temp</em> is moderately correlated with both <em>Summit.Air.Temp</em> (0.87) and <em>Snow.Temp</em> (0.67), reflecting expected temperature relationships in mountainous conditions.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="A1-DS4I---Workings_files/figure-html/unnamed-chunk-7-1.png" class="img-fluid figure-img" width="576"></p>
+<figcaption>Heatmap of Pearson correlation coefficients among all numeric avalanche features.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="density-of-the-features" class="level3" data-number="6.1.3">
+<h3 data-number="6.1.3" class="anchored" data-anchor-id="density-of-the-features"><span class="header-section-number">6.1.3</span> Density of the Features</h3>
+<p>The density plots reveal diverse distributions among the numeric features. Temperature-related variables (<em>Air.Temp</em> and <em>Summit.Air.Temp</em>) display approximately symmetric or normal-like distributions. In contrast, several variables such as <em>Foot.Pen,</em> <em>Summit.Wind.Speed</em>, and <em>Total.Snow.Depth</em> exhibit heavy right-skewness. Features like <em>Crystals</em>, <em>Insolation</em>, and <em>Wetness</em> show multimodality suggesting underlying subgroups. Other features like <em>Max.Temp.Grad</em> and <em>Snow Index</em> show irregular patterns. These non-normal distributions and skewed shapes suggest the need for data transformation or standardization.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="A1-DS4I---Workings_files/figure-html/unnamed-chunk-8-1.png" class="img-fluid figure-img" width="768"></p>
+<figcaption>Density plots of all avalanche variables illustrating the varying distributions.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="categorical-variables" class="level2" data-number="6.2">
+<h2 data-number="6.2" class="anchored" data-anchor-id="categorical-variables"><span class="header-section-number">6.2</span> Categorical Variables</h2>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-distribution-categorical" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-distribution-categorical-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="A1-DS4I---Workings_files/figure-html/fig-distribution-categorical-1.png" class="img-fluid figure-img" width="576">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-distribution-categorical-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Distribution of categorical variables: Areas, Drift, and Rain at 900.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<!--# Leave empty space here -->
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-distribution-ordinal" class="quarto-float quarto-figure quarto-figure-center anchored" data-fig-pos="H">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-distribution-ordinal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="A1-DS4I---Workings_files/figure-html/fig-distribution-ordinal-1.png" class="img-fluid figure-img" data-fig-pos="H" width="576">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-distribution-ordinal-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Distribution of ordinal variables: OAH, FAH, Precip Code and Hardness Grad.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div style="page-break-after: always;"></div>
+<p>Nominal: <a href="#fig-distribution-categorical" class="quarto-xref">Figure&nbsp;3</a> above shows that observations are fairly well distributed across the six areas, with the Northern Cairngorms (21.0%) and Lochaber (19.1%) having the highest representation, while Torridon accounts for the fewest cases. For drift conditions, slightly more than half of the observations reported no drift (56.4%), while 43.6% recorded drift. <em>Rainfall at 900</em> was absent in the majority of cases, with only 16.4% of observations indicating rain.</p>
+<p>Ordinal: From <a href="#fig-distribution-ordinal" class="quarto-xref">Figure&nbsp;4</a>, the distribution of ordinal variables shows clear imbalances in category frequencies. Most observations fall into lower or moderate levels. For instance, <em>Low</em> and <em>Moderate</em> dominate in both <em>FAH</em> and <em>OAH</em>, while <em>Precip.Code</em> is heavily concentrated at 0, indicating frequent absence of precipitation.</p>
+</section>
+</section>
+<section id="bivariate-exploration" class="level1" data-number="7">
+<h1 data-number="7"><span class="header-section-number">7</span> Bivariate Exploration</h1>
+<section id="oah-vs-quantitative-predictors" class="level2" data-number="7.1">
+<h2 data-number="7.1" class="anchored" data-anchor-id="oah-vs-quantitative-predictors"><span class="header-section-number">7.1</span> OAH vs Quantitative Predictors</h2>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-response-vs-numeric" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-response-vs-numeric-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="A1-DS4I---Workings_files/figure-html/fig-response-vs-numeric-1.png" class="img-fluid figure-img" width="768">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-response-vs-numeric-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Boxplots of numeric features grouped by OAH levels. That is, continuous variables vs response variable.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Based on <a href="#fig-response-vs-numeric" class="quarto-xref">Figure&nbsp;5</a>, higher OAH levels (e.g., “Considerable +” and “High”) are associated with increased values in variables such as <em>Foot Pen</em><strong>,</strong> <em>Summit Wind Speed</em><strong>,</strong> <em>Total Snow Depth</em>, and <em>Wind Speed</em>, suggesting deeper, and more wind-affected snow conditions contribute to avalanche risk. Additionally, looking at the temperature-related variables lower temperatures tend to be associated with higher avalanche risk.</p>
+</section>
+<section id="oah-vs-qualitative-predictors" class="level2" data-number="7.2">
+<h2 data-number="7.2" class="anchored" data-anchor-id="oah-vs-qualitative-predictors"><span class="header-section-number">7.2</span> OAH vs Qualitative Predictors</h2>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-response-vs-categoric" class="quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-response-vs-categoric-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="A1-DS4I---Workings_files/figure-html/fig-response-vs-categoric-1.png" class="img-fluid figure-img" width="576">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-response-vs-categoric-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6: Proportional distribution of the OAH variable across levels of each categorical predictor.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Proportional analysis reveals that lower hazard levels (“Low” and “Moderate”) dominate across all predictors, while higher hazard levels (i.e.&nbsp;“High” and the two “Considerable” subcategories) occur much less frequently. This imbalance in the target variable distribution should be accounted for in subsequent modelling. Additionally, the separation of the “Considerable” class into two sublevels suggests a potential need to reassess their grouping for improved interpretability.</p>
+</section>
+</section>
+<section id="transformation-and-standardisation" class="level1" data-number="8">
+<h1 data-number="8"><span class="header-section-number">8</span> Transformation and Standardisation</h1>
+<p><strong>Transforming Circular and Spatial Variables</strong></p>
+<p>Several variables in the dataset, such as <em>Aspect</em>, <em>Summit.Wind.Direction</em>, and <em>Wind.Dir</em>, are circular in nature, meaning that their values wrap around at 360°. Standard linear treatments of such variables can be misleading, since values near 0° and 360° are numerically distant but represent almost the same orientation. To address this, each circular variable was transformed into two new features using trigonometric encoding: the sine and cosine of the angle (converted to radians). This transformation preserves the cyclic structure of the data and ensures that angular proximity is correctly represented in the feature space.</p>
+<p><strong>Transforming Spatial Variables</strong></p>
+<p>Similarly, the geographic coordinates (<em>longitude</em> and <em>latitude</em>) were projected into a planar coordinate system using an appropriate map projection. This transformation produced new features (<em>Spatial.X</em> and <em>Spatial.Y</em>) that express locations in meters rather than degrees, avoiding distortions inherent in raw geographic coordinates.</p>
+<div style="page-break-after: always;"></div>
+<p><strong>Standardisation</strong></p>
+<p>Because the variables are on very different scales, and neural networks are scale-sensitive, standardization is needed so that all features, specifically non-categorical ones, contribute fairly. We chose z-score scaling because it preserves relative distances and variance. Other alternatives like min–max scaling maps values to a fixed range (typically <span class="math inline">\([0,1]\)</span>), and can compress extreme values making them appear less extreme.</p>
+</section>
+<section id="modelling-neural-networks" class="level1" data-number="9">
+<h1 data-number="9"><span class="header-section-number">9</span> Modelling: Neural Networks</h1>
+<p>The <code>build_model</code> function constructs a configurable feedforward neural network using Keras. The architecture consists of an input layer, one or more hidden layers with ReLU activation, optional dropout for regularization, and a softmax output layer. The network is compiled using the Adam optimizer with a user-specified learning rate and sparse categorical cross-entropy loss for integer-encoded multi-class targets.</p>
+<p>The <code>train_model</code> function trains the network on the provided dataset with optional early stopping and model checkpointing. A portion of the training data is reserved for validation. Training parameters, such as batch size, number of epochs, and validation split, are configurable. Early stopping monitors the validation loss to prevent overfitting, while the checkpoint ensures the best-performing model is saved.</p>
+<section id="architecture-model-configuration" class="level2" data-number="9.1">
+<h2 data-number="9.1" class="anchored" data-anchor-id="architecture-model-configuration"><span class="header-section-number">9.1</span> <strong>Architecture (Model Configuration)</strong></h2>
+<!-- Splitting of the data -->
+<!-- Functions to use for the neural network -->
+<!-- 
+Function to be used to match the predictor set names to x_train names
+-->
+<!-- 
+Build and train the neural network.
+NOTE: Models were tuned using the file nn_hyperparameter_tuning.R
+Best models were saved after to be loaded for later.
+-->
+<p>The target variable, representing the forecast avalanche hazard level, was encoded as an ordinal categorical variable using the following class labels:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Class Label</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>Low</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td>Moderate</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Considerable −</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>Considerable +</td>
+</tr>
+<tr class="odd">
+<td>4</td>
+<td>High</td>
+</tr>
+</tbody>
+</table>
+<div style="page-break-after: always;"></div>
+</section>
+<section id="model-1-topography-model" class="level2" data-number="9.2">
+<h2 data-number="9.2" class="anchored" data-anchor-id="model-1-topography-model"><span class="header-section-number">9.2</span> Model 1: Topography Model</h2>
+<p>The model has an accuracy of 74.82% when you apply (<em>longitude:Incline</em>)</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="A1-DS4I---Workings_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>43/43 - 1s - 707ms/epoch - 16ms/step</code></pre>
+</div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Class: 0</th>
+<th style="text-align: right;">Class: 1</th>
+<th style="text-align: right;">Class: 2</th>
+<th style="text-align: right;">Class: 3</th>
+<th style="text-align: right;">Class: 4</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Sensitivity</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.73</td>
+<td style="text-align: right;">0.92</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Specificity</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.86</td>
+<td style="text-align: right;">0.81</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Precision</td>
+<td style="text-align: right;">0.98</td>
+<td style="text-align: right;">0.70</td>
+<td style="text-align: right;">0.56</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">NA</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Recall</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.73</td>
+<td style="text-align: right;">0.92</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">F1</td>
+<td style="text-align: right;">0.88</td>
+<td style="text-align: right;">0.72</td>
+<td style="text-align: right;">0.70</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">NA</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Prevalence</td>
+<td style="text-align: right;">0.41</td>
+<td style="text-align: right;">0.32</td>
+<td style="text-align: right;">0.21</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.01</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Balanced Accuracy</td>
+<td style="text-align: right;">0.89</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.87</td>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">0.50</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The classification metrics across the five avalanche hazard classes reveal severe imbalance, with the model biased toward Low, Moderate, and Considerable−, while completely neglecting Considerable+ and High. Low exhibits strong detection, with sensitivity of 0.79 and specificity of 0.99, capturing most true instances while rarely misclassifying others. Precision is very high at 0.98, and balanced accuracy is 0.89, indicating reliable performance for this majority class. Moderate shows moderate detection, with sensitivity of 0.73 and specificity of 0.86. Precision drops to 0.70, and balanced accuracy of 0.79 suggests the model detects many true positives but misclassifies a notable proportion.</p>
+<p>Considerable− achieves very high sensitivity (0.92), meaning nearly all true instances are detected. However, precision is only 0.56, reflecting frequent misclassification from other classes. Balanced accuracy is 0.87, showing decent overall detection despite noisy predictions. Considerable+ and High are entirely ignored, with sensitivity, detection rate, and detection prevalence all equal to 0. Specificity remains perfect at 1.00, but this is meaningless because the model never predicts these classes. Precision and F1-scores are undefined, and balanced accuracy defaults to 0.50, reflecting complete failure for minority classes.</p>
+<p>The model’s accuracy of 0.75 masks severe class imbalance: while majority classes dominate predictions, the model cannot detect rare hazard levels, rendering it unreliable for comprehensive avalanche hazard assessment.</p>
+</section>
+<section id="model-2-weather-model" class="level2" data-number="9.3">
+<h2 data-number="9.3" class="anchored" data-anchor-id="model-2-weather-model"><span class="header-section-number">9.3</span> Model 2: Weather Model</h2>
+<p>The model has an accuracy of 74.90% when you apply (<em>Air.Temp:Summit.Wind.Speed</em>)</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="A1-DS4I---Workings_files/figure-html/unnamed-chunk-15-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>43/43 - 0s - 262ms/epoch - 6ms/step</code></pre>
+</div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Class: 0</th>
+<th style="text-align: right;">Class: 1</th>
+<th style="text-align: right;">Class: 2</th>
+<th style="text-align: right;">Class: 3</th>
+<th style="text-align: right;">Class: 4</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Sensitivity</td>
+<td style="text-align: right;">0.83</td>
+<td style="text-align: right;">0.74</td>
+<td style="text-align: right;">0.81</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.20</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Specificity</td>
+<td style="text-align: right;">0.97</td>
+<td style="text-align: right;">0.86</td>
+<td style="text-align: right;">0.85</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.99</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Precision</td>
+<td style="text-align: right;">0.94</td>
+<td style="text-align: right;">0.70</td>
+<td style="text-align: right;">0.59</td>
+<td style="text-align: right;">0.22</td>
+<td style="text-align: right;">0.33</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Recall</td>
+<td style="text-align: right;">0.83</td>
+<td style="text-align: right;">0.74</td>
+<td style="text-align: right;">0.81</td>
+<td style="text-align: right;">0.06</td>
+<td style="text-align: right;">0.20</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">F1</td>
+<td style="text-align: right;">0.88</td>
+<td style="text-align: right;">0.72</td>
+<td style="text-align: right;">0.69</td>
+<td style="text-align: right;">0.09</td>
+<td style="text-align: right;">0.25</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Prevalence</td>
+<td style="text-align: right;">0.41</td>
+<td style="text-align: right;">0.32</td>
+<td style="text-align: right;">0.21</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.01</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Balanced Accuracy</td>
+<td style="text-align: right;">0.90</td>
+<td style="text-align: right;">0.80</td>
+<td style="text-align: right;">0.83</td>
+<td style="text-align: right;">0.52</td>
+<td style="text-align: right;">0.60</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The classification metrics across the five avalanche hazard classes indicate some improvement for minority classes, but the model remains heavily biased toward Low, Moderate, and Considerable−. Low continues to show strong performance, with sensitivity of 0.83 and specificity of 0.97. Precision is 0.94, and balanced accuracy reaches 0.90, reflecting reliable detection of this majority class.Moderate is similarly well detected, with sensitivity 0.74, specificity 0.86, and precision 0.70. Balanced accuracy of 0.80 indicates reasonable overall performance, though some misclassifications remain.</p>
+<p>Considerable− achieves solid sensitivity of 0.81 and specificity of 0.85, but precision is lower at 0.59, indicating that a notable fraction of predictions for this class are actually from other categories. Balanced accuracy of 0.83 shows improvement over the previous model, but predictions remain noisy. Considerable+ sees minimal improvement, with sensitivity just 0.06, specificity 0.99, and precision 0.22. Balanced accuracy of 0.52 shows the model is barely detecting this class. High also shows some gains, with sensitivity 0.20, specificity 0.99, and precision 0.33, giving a balanced accuracy of 0.60. While this represents progress compared to complete neglect in the previous iteration, detection for rare classes is still very weak and unreliable.</p>
+<p>The accuracy remains around 0.75, similar to the previous model, but the addition of some correct predictions for Considerable+ and High demonstrates partial learning of minority classes.</p>
+</section>
+<section id="model-3-snowpack-model" class="level2" data-number="9.4">
+<h2 data-number="9.4" class="anchored" data-anchor-id="model-3-snowpack-model"><span class="header-section-number">9.4</span> Model 3: Snowpack Model</h2>
+<p>The model has an accuracy of 75.11% when you apply (<em>Max.Temp.Grad:Snow.Temp</em>)</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="A1-DS4I---Workings_files/figure-html/unnamed-chunk-16-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>43/43 - 0s - 268ms/epoch - 6ms/step</code></pre>
+</div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Class: 0</th>
+<th style="text-align: right;">Class: 1</th>
+<th style="text-align: right;">Class: 2</th>
+<th style="text-align: right;">Class: 3</th>
+<th style="text-align: right;">Class: 4</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Sensitivity</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.75</td>
+<td style="text-align: right;">0.89</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.30</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Specificity</td>
+<td style="text-align: right;">0.98</td>
+<td style="text-align: right;">0.85</td>
+<td style="text-align: right;">0.84</td>
+<td style="text-align: right;">1.00</td>
+<td style="text-align: right;">1.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Precision</td>
+<td style="text-align: right;">0.97</td>
+<td style="text-align: right;">0.69</td>
+<td style="text-align: right;">0.59</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">0.50</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Recall</td>
+<td style="text-align: right;">0.79</td>
+<td style="text-align: right;">0.75</td>
+<td style="text-align: right;">0.89</td>
+<td style="text-align: right;">0.00</td>
+<td style="text-align: right;">0.30</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">F1</td>
+<td style="text-align: right;">0.87</td>
+<td style="text-align: right;">0.72</td>
+<td style="text-align: right;">0.71</td>
+<td style="text-align: right;">NA</td>
+<td style="text-align: right;">0.37</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Prevalence</td>
+<td style="text-align: right;">0.41</td>
+<td style="text-align: right;">0.32</td>
+<td style="text-align: right;">0.21</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.01</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Balanced Accuracy</td>
+<td style="text-align: right;">0.89</td>
+<td style="text-align: right;">0.80</td>
+<td style="text-align: right;">0.86</td>
+<td style="text-align: right;">0.50</td>
+<td style="text-align: right;">0.65</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The classification metrics across the five avalanche hazard classes show a pattern similar to previous models, with strong detection of majority classes (Low, Moderate, Considerable−) but inconsistent recognition of minority classes (Considerable+, High). Low maintains solid performance, with sensitivity of 0.79 and specificity of 0.98. Precision is very high at 0.97, and balanced accuracy reaches 0.89, indicating reliable classification of this majority class.Moderate demonstrates moderate detection, with sensitivity 0.75, specificity 0.85, and precision 0.69. Balanced accuracy of 0.80 reflects reasonable performance, although some misclassification persists.</p>
+<p>Considerable− shows high sensitivity at 0.89 and specificity of 0.84, though precision is only 0.59, suggesting considerable confusion with other classes. Balanced accuracy of 0.86 indicates that the model reliably identifies most true instances, but errors remain.Considerable+ is completely neglected, with sensitivity and detection rate at 0.00. Specificity remains 1.00, but this is meaningless since the model never predicts this class. Precision and F1-scores are undefined, and balanced accuracy defaults to 0.50, reflecting total failure for this class.High shows some improvement compared to the previous iteration, with sensitivity 0.30, specificity 0.996, and precision 0.50. Balanced accuracy of 0.65 indicates partial detection, though the model still misses the majority of true High instances.</p>
+<p>The accuracy is 0.75, similar to prior models. While majority classes dominate predictions and are reliably detected, minority classes remain poorly recognized.</p>
+</section>
+<section id="model-4-full-model" class="level2" data-number="9.5">
+<h2 data-number="9.5" class="anchored" data-anchor-id="model-4-full-model"><span class="header-section-number">9.5</span> Model 4: Full Model</h2>
+<p>The model has an accuracy of 74,59% when you apply all the predictors.</p>
+<div class="cell" data-layout-align="center">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="A1-DS4I---Workings_files/figure-html/unnamed-chunk-17-1.png" class="img-fluid quarto-figure quarto-figure-center figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>43/43 - 0s - 341ms/epoch - 8ms/step</code></pre>
+</div>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: right;">Class: 0</th>
+<th style="text-align: right;">Class: 1</th>
+<th style="text-align: right;">Class: 2</th>
+<th style="text-align: right;">Class: 3</th>
+<th style="text-align: right;">Class: 4</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">Sensitivity</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">0.74</td>
+<td style="text-align: right;">0.78</td>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">0.40</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Specificity</td>
+<td style="text-align: right;">0.97</td>
+<td style="text-align: right;">0.85</td>
+<td style="text-align: right;">0.86</td>
+<td style="text-align: right;">0.99</td>
+<td style="text-align: right;">0.99</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Precision</td>
+<td style="text-align: right;">0.94</td>
+<td style="text-align: right;">0.69</td>
+<td style="text-align: right;">0.60</td>
+<td style="text-align: right;">0.33</td>
+<td style="text-align: right;">0.38</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Recall</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">0.74</td>
+<td style="text-align: right;">0.78</td>
+<td style="text-align: right;">0.10</td>
+<td style="text-align: right;">0.40</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">F1</td>
+<td style="text-align: right;">0.88</td>
+<td style="text-align: right;">0.72</td>
+<td style="text-align: right;">0.67</td>
+<td style="text-align: right;">0.16</td>
+<td style="text-align: right;">0.39</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Prevalence</td>
+<td style="text-align: right;">0.41</td>
+<td style="text-align: right;">0.32</td>
+<td style="text-align: right;">0.21</td>
+<td style="text-align: right;">0.05</td>
+<td style="text-align: right;">0.01</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Balanced Accuracy</td>
+<td style="text-align: right;">0.89</td>
+<td style="text-align: right;">0.80</td>
+<td style="text-align: right;">0.82</td>
+<td style="text-align: right;">0.55</td>
+<td style="text-align: right;">0.70</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<p>The classification metrics for the Full Model indicate persistent class imbalance, with strong performance for majority classes (Low, Moderate, Considerable−) and some improvement in detecting minority classes (Considerable+, High).Low shows robust detection, with sensitivity of 0.82, specificity 0.97, and precision 0.94. Balanced accuracy of 0.89 confirms reliable performance for this majority class.Moderate maintains moderate performance, with sensitivity 0.74, specificity 0.85, and precision 0.69. Balanced accuracy of 0.80 suggests reasonable detection, though some misclassification remains.</p>
+<p>Considerable− demonstrates slightly lower sensitivity (0.78) compared to prior models, specificity of 0.86, and precision of 0.60. Balanced accuracy of 0.82 indicates the model can identify a majority of instances, but confusion with other classes persists. Considerable+ shows modest improvement, with sensitivity 0.10, specificity 0.99, and precision 0.33. Balanced accuracy of 0.55 indicates minimal detection of this minority class, though performance is still weak. High is detected slightly better than before, with sensitivity 0.40, specificity 0.99, and precision 0.38. Balanced accuracy of 0.70 suggests that the model is beginning to recognize rare, high-risk instances, though it still misses the majority of true cases.</p>
+<p>The accuracy of 0.75 is comparable to earlier models. While majority classes dominate predictions and are consistently well-classified, the Full Model demonstrates only limited success in capturing minority classes. This highlights that even with all input features included, class imbalance remains a major limitation, and the model cannot reliably predict high-severity avalanche hazards.</p>
+</section>
+</section>
+<section id="conclusion" class="level1" data-number="10">
+<h1 data-number="10"><span class="header-section-number">10</span> Conclusion</h1>
+<p>Across all four models Model 1, Model 2, Model 3, and the Full Model the overall accuracy remains relatively stable around 0.75, the models can reliably classify the majority avalanche hazard categories (Low, Moderate, and Considerable−). Low consistently achieves the highest sensitivity, precision, and balanced accuracy, indicating that the models strongly favor this majority class. Moderate and Considerable− are detected reasonably well, though with lower precision, reflecting misclassification and confusion between these middle categories.</p>
+<p>In contrast, the minority hazard classes—Considerable+ and High—remain challenging for all models. Sensitivity for these classes is extremely low in most cases, with some minor improvement in later models, particularly the Full Model, which achieves a sensitivity of 0.10 for Considerable+ and 0.40 for High. However, these gains are insufficient to reliably capture rare but critical hazard levels. Precision and balanced accuracy for these classes remain poor, highlighting that even when predictions are made, they are often incorrect.</p>
+<p>The models exhibit a clear majority-class bias: strong performance for common hazard levels comes at the expense of minority classes, limiting the practical utility of these models for comprehensive avalanche hazard assessment. While inclusion of additional features in the Full Model provides slight improvements for rare classes, significant misclassification persists.</p>
+</section>
+<section id="references" class="level1" data-number="11">
+<h1 data-number="11"><span class="header-section-number">11</span> References</h1>
+<ol type="1">
+<li><p>McCulloch, W.S., Pitts, W. A logical calculus of the ideas immanent in nervous activity.&nbsp;<em>Bulletin of Mathematical Biophysics</em>&nbsp;<strong>5</strong>, 115–133 (1943). <a href="https://doi.org/10.1007/BF02478259" class="uri">https://doi.org/10.1007/BF02478259</a></p></li>
+<li><p>Stephens, J &amp; Adams, E. &amp; Huo, X &amp; Dent, J &amp; Hicks, J &amp; Mccartf, D. USE OF NEURAL NETWORKS IN AVALANCHE HAZARD FORECASTING.</p></li>
+<li><p>Bahram Choubin, Moslem Borji, Amir Mosavi, Farzaneh Sajedi-Hosseini, Vijay P. Singh,Shahaboddin Shamshirband,Snow avalanche hazard prediction using machine learning methods,Journal of Hydrology,Volume 577,2019,123929,ISSN0022-1694, <a href="https://doi.org/10.1016/j.jhydrol.2019.123929.(https://www.sciencedirect.com/science/article/pii/S0022169419306493)" class="uri">https://doi.org/10.1016/j.jhydrol.2019.123929.(https://www.sciencedirect.com/science/article/pii/S0022169419306493)</a></p></li>
+<li><p>Fedkin, Yevgeniy &amp; Denissova, N.F. &amp; Daumova, Gulzhan &amp; Chettykbayev, Ruslan &amp; Rakhmetullina, Saule. (2025). Avalanche Hazard Prediction in East Kazakhstan Using Ensemble Machine Learning Algorithms. Algorithms. 18. 505. 10.3390/a18080505.</p></li>
+<li><p>Jordy Hendrikx, Matt Murphy, Terry Onslow, Classification trees as a tool for operational avalanche forecasting on the Seward Highway, Alaska, Cold Regions Science and Technology, Volume 97, 2014, Pages 113-120, ISSN 0165-232X, <a href="https://doi.org/10.1016/j.coldregions.2013.08.009." class="uri">https://doi.org/10.1016/j.coldregions.2013.08.009.</a> (<a href="https://www.sciencedirect.com/science/article/pii/S0165232X13001250)" class="uri">https://www.sciencedirect.com/science/article/pii/S0165232X13001250)</a></p></li>
+<li><p>Viallon-Galinier, L., Hagenmuller, P., and Eckert, N.: Combining modelled snowpack stability with machine learning to predict avalanche activity, The Cryosphere, 17, 2245–2260, https://doi.org/10.5194/tc-17-2245-2023, 2023.</p></li>
+<li><p>Kala, Manish &amp; Jain, Shweta &amp; Singh, Amreek &amp; Krishnan, Narayanan. (2024). Addressing class imbalance in avalanche forecasting. Cold Regions Science and Technology. 231. 104411. 10.1016/j.coldregions.2024.104411.</p></li>
+</ol>
+<div style="page-break-after: always;"></div>
+</section>
+<section id="llm-usage" class="level1" data-number="12">
+<h1 data-number="12"><span class="header-section-number">12</span> LLM Usage</h1>
+<p>We used the LLM to format most of the work to make it academically sound. The LLM’s performance depended on the clarity of the prompts it is given e.g If you were to ask something regarding the use of Avalanche forecasting it gives a lot of ways to do it like GIS techniques, Geophysics and other scientific ways to model it but if you are specific on what you need it performs better e.g what statistical techniques can I use? The way we understand how to use the LLM is to treat it like a child and give it simple straight foward prompts.</p>
+<section id="example-of-use" class="level2" data-number="12.1">
+<h2 data-number="12.1" class="anchored" data-anchor-id="example-of-use"><span class="header-section-number">12.1</span> Example of use</h2>
+<section id="prompts" class="level3" data-number="12.1.1">
+<h3 data-number="12.1.1" class="anchored" data-anchor-id="prompts"><span class="header-section-number">12.1.1</span> Prompts</h3>
+<ul>
+<li><p>Write this passage in an academic manner</p></li>
+<li><p>Be straight forward</p></li>
+<li><p>Ensure information flow</p></li>
+</ul>
+</section>
+<section id="result-chatgpt" class="level3" data-number="12.1.2">
+<h3 data-number="12.1.2" class="anchored" data-anchor-id="result-chatgpt"><span class="header-section-number">12.1.2</span> Result <a href="https://chatgpt.com/c/68d9e86c-9cf0-8331-b128-63610104fdfd">chatGPT</a></h3>
+<p>We used a large language model (LLM) to format the majority of the work, ensuring it met academic standards. The performance of the LLM was highly dependent on the clarity and specificity of the prompts provided. For example, a broad prompt about avalanche forecasting yields a wide range of responses, including GIS techniques, geophysical methods, and other scientific modeling approaches. However, when prompts were specific, such as asking which statistical techniques could be applied, the LLM produced more precise and relevant outputs. Based on this experience, the most effective way to use the LLM is to provide clear, simple, and direct prompts.</p>
+<div style="page-break-after: always;"></div>
+</section>
+</section>
+</section>
+<section id="appendix" class="level1" data-number="13">
+<h1 data-number="13"><span class="header-section-number">13</span> Appendix</h1>
+<div class="cell">
+<div id="tbl-summary-numeric" class="cell quarto-float quarto-figure quarto-figure-center anchored">
+<figure class="quarto-float quarto-float-tbl figure">
+<figcaption class="quarto-float-caption-top quarto-float-caption quarto-float-tbl" id="tbl-summary-numeric-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Table&nbsp;1: Summary of descriptive statistics for all continuous variables
+</figcaption>
+<div aria-describedby="tbl-summary-numeric-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<div class="cell-output-display">
+<table class="table do-not-create-environment cell caption-top table-sm table-striped small" data-quarto-postprocess="true">
+<thead>
+<tr class="header">
+<th style="text-align: left;" data-quarto-table-cell-role="th">Variable</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Min</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Q1</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Q2</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Q3</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Max</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Mean</th>
+<th style="text-align: right;" data-quarto-table-cell-role="th">Std</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd" data-grouplength="4">
+<td colspan="8"><strong></strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Air.Temp</td>
+<td style="text-align: right;">-10.8</td>
+<td style="text-align: right;">-2.2</td>
+<td style="text-align: right;">-0.4</td>
+<td style="text-align: right;">1.7</td>
+<td style="text-align: right;">14.0</td>
+<td style="text-align: right;">-0.2</td>
+<td style="text-align: right;">3.2</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Alt</td>
+<td style="text-align: right;">113.0</td>
+<td style="text-align: right;">820.0</td>
+<td style="text-align: right;">920.0</td>
+<td style="text-align: right;">1 045.0</td>
+<td style="text-align: right;">1 300.0</td>
+<td style="text-align: right;">918.9</td>
+<td style="text-align: right;">158.6</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Cloud</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">70.0</td>
+<td style="text-align: right;">100.0</td>
+<td style="text-align: right;">100.0</td>
+<td style="text-align: right;">100.0</td>
+<td style="text-align: right;">80.0</td>
+<td style="text-align: right;">31.5</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Crystals</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">15.0</td>
+<td style="text-align: right;">1.5</td>
+<td style="text-align: right;">3.2</td>
+</tr>
+<tr class="even" data-grouplength="4">
+<td colspan="8"><strong></strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Foot.Pen</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">10.0</td>
+<td style="text-align: right;">20.0</td>
+<td style="text-align: right;">120.0</td>
+<td style="text-align: right;">14.2</td>
+<td style="text-align: right;">12.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Incline</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">23.0</td>
+<td style="text-align: right;">28.0</td>
+<td style="text-align: right;">32.0</td>
+<td style="text-align: right;">75.0</td>
+<td style="text-align: right;">27.1</td>
+<td style="text-align: right;">7.7</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Insolation</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">3.0</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">10.0</td>
+<td style="text-align: right;">20.0</td>
+<td style="text-align: right;">7.6</td>
+<td style="text-align: right;">5.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Max.Temp.Grad</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.4</td>
+<td style="text-align: right;">1.1</td>
+<td style="text-align: right;">80.0</td>
+<td style="text-align: right;">0.7</td>
+<td style="text-align: right;">1.7</td>
+</tr>
+<tr class="odd" data-grouplength="4">
+<td colspan="8"><strong></strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">No.Settle</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">56.0</td>
+<td style="text-align: right;">124.0</td>
+<td style="text-align: right;">202.0</td>
+<td style="text-align: right;">560.0</td>
+<td style="text-align: right;">135.6</td>
+<td style="text-align: right;">95.6</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Snow.Index</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">368.0</td>
+<td style="text-align: right;">1.4</td>
+<td style="text-align: right;">10.4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Snow.Temp</td>
+<td style="text-align: right;">-13.1</td>
+<td style="text-align: right;">-2.5</td>
+<td style="text-align: right;">-0.7</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">10.0</td>
+<td style="text-align: right;">-1.5</td>
+<td style="text-align: right;">2.0</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Summit.Air.Temp</td>
+<td style="text-align: right;">-13.4</td>
+<td style="text-align: right;">-3.9</td>
+<td style="text-align: right;">-1.9</td>
+<td style="text-align: right;">0.2</td>
+<td style="text-align: right;">15.0</td>
+<td style="text-align: right;">-1.5</td>
+<td style="text-align: right;">3.3</td>
+</tr>
+<tr class="even" data-grouplength="4">
+<td colspan="8"><strong></strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Summit.Wind.Speed</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">15.0</td>
+<td style="text-align: right;">26.0</td>
+<td style="text-align: right;">38.0</td>
+<td style="text-align: right;">355.0</td>
+<td style="text-align: right;">28.9</td>
+<td style="text-align: right;">23.1</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Total.Snow.Depth</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">50.0</td>
+<td style="text-align: right;">71.0</td>
+<td style="text-align: right;">120.0</td>
+<td style="text-align: right;">590.0</td>
+<td style="text-align: right;">97.4</td>
+<td style="text-align: right;">75.4</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Wetness</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;">1.0</td>
+<td style="text-align: right;">2.0</td>
+<td style="text-align: right;">10.0</td>
+<td style="text-align: right;">1.4</td>
+<td style="text-align: right;">1.2</td>
+</tr>
+<tr class="even">
+<td style="text-align: left; padding-left: 2em;" data-indentlevel="1">Wind.Speed</td>
+<td style="text-align: right;">0.0</td>
+<td style="text-align: right;">8.0</td>
+<td style="text-align: right;">15.0</td>
+<td style="text-align: right;">20.0</td>
+<td style="text-align: right;">110.0</td>
+<td style="text-align: right;">15.9</td>
+<td style="text-align: right;">10.4</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</figure>
+</div>
+</div>
+<div style="page-break-after: always;"></div>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

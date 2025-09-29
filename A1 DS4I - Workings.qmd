@@ -1,0 +1,1246 @@
+---
+#title: "Assignment 1"
+#author: "Group"
+format:
+  pdf:
+    documentclass: article
+    #include-in-header: common/packages.tex
+    geometry: "top=1cm, bottom=2cm, left=2cm, right=2cm"
+    toc: false
+    toc-depth: 3
+    number-sections: true
+    fig-align: "center"
+    embed-resource: true
+editor: visual
+execute:
+  echo: false
+  warning: false
+---
+
+\begin{titlepage}
+\centering
+\vspace{5cm}
+{\Huge \bfseries Machine Learning Approaches to Avalanche Hazard Forecasting: A Neural Network Application in Scotland.\par}
+\vspace{1cm}
+\begin{center}
+\includegraphics[width=2cm]{images/picture1.jpg}
+\end{center}
+{\Large Department of Statistical Sciences\par}
+{\Large Data Science For Industry Assignment 1\par}
+\vspace{1cm}
+{\Large Group Members: \par}
+{\normalsize Amogelang Ramatlo RMTAMO001 \par}
+{\normalsize Sbonokuhle Myeni MYNSBO001\par}
+{\normalsize Tsholofelo Raseluma RSLTSH003\par}
+{\normalsize Siyabonga Dlamini\par}
+\vspace{0.5cm}
+\end{titlepage}
+\newpage
+
+\newpage
+
+# Abstract
+
+This paper investigates the use of neural networks to predict observed avalanches one day in advance. The study utilizes a 15-year archive of avalanche forecasts and develops four neural network models. The first model, which incorporated all available variables, achieved an accuracy of 74.59%. However, despite this moderate performance, the model exhibited weak precision and recall for the moderate and High class, making it unsuitable for practical application. The remaining models were trained on subsets of predictors. Predictor Set 1 (*Longitude:Incline*) achieved an accuracy of 74,82% but suffered from poor precision and recall across moderate and high classes. Predictor Set 2 (*Air.Temp:Summit.Wind.Speed*) performed marginally better at 74.89%, though its precision and recall remained low for the minor classes. Predictor Set 3 (*Max.Temp.Grad:Snow.Temp*) obtained the highest accuracy at 75.11% from the three, yet it too was limited by weak recall and precision on the minority classes. The overall imperfectness in performance of the models is largely attributable to class imbalance in the dataset, as severe avalanche conditions were rare, leading the models to bias toward the more frequent classes. Similar challenges related to class imbalance in avalanche prediction models have been highlighted in recent work by [Manish K (2024)](https://www.researchgate.net/publication/387372340_Addressing_class_imbalance_in_avalanche_forecasting).
+
+# Introduction
+
+An avalanche is when a mass of material rapidly moves down a slope. It usually happens when material breaks loose from the slope, and as it moves, it gathers more material on the way down. There are different varieties of them, namely rock, ice and debris avalanches [(Karl W. Birkeland, 2025)](https://www.britannica.com/science/avalanche). This study aims to analyse and predict the observed avalanche hazard occurrences of ice avalanches in Scotland using Neural networks.
+
+Avalanches pose significant risks to safety, infrastructure, and recreational activities in mountainous regions. avalanche forecasting is important for mitigating these risks. While expert forecasters combine field observations, weather data, and snowpack tests to generate daily forecasts, these methods are time intensive and heavily rely on human expertise. With the availability of a 15-year archive of avalanche forecasts from the [Scottish Avalanche Information Service](https://www.sais.gov.uk/) (SAIS), there is an opportunity to build a predictive model that can supplement expert judgement. The challenge lies in effectively using historical data, including forecast and observed avalanche hazards, geographic and topographic factors, weather variables, and snowpack integrity measures to predict avalanche hazard levels. Developing such a model can improve the consistency and efficiency of avalanche forecasts and enhance public safety in Scotland.
+
+## Study Area
+
+![Study area in Scotland](images/scotland_area.png){fig-align="center" width="364"}
+
+## Problem Statement
+
+Avalanches in Scotland pose a significant risk to human life, infrastructure, and the environment, particularly in mountainous areas frequented by hikers, skiers, and local communities. Current avalanche forecasts rely heavily on expert judgment, which combines field observations of snow conditions, weather forecasts, and historical data. However, these forecasts can be limited by human bias, inconsistencies in data interpretation, and gaps in spatial coverage.
+
+# Literature Review
+
+Avalanche hazard assessments rely on observations of avalanches, snowpack, weather and terrain they require integrating a complex array of data and evidence to produce a forecast with considerable uncertainty, Avalanche forecasters strive to minimize this uncertainty by assimilating data and evidence accumulated incrementally over time [LaChapelle (1980)](doi:10.1017/s0022143000010601).
+
+Avalanche hazard forecasting has been the subject of extensive research over the years, with a range of methodological approaches developed to address the problem.On a study conducted by [Hendrikx J et.al (2014)](https://doi.org/10.1016/j.coldregions.2013.08.009) Avalanches was forecasted using classification trees, which performed relatively well due to the ability of these statistical methods to learn from data and optimize class separation through a hierarchy of decision rules.
+
+[L. Viallon-Galinier et al. (2023)](https://doi.org/10.5194/tc-17-2245-2023) conducted a study that integrated modelled snowpack stability with machine learning techniques for avalanche forecasting. The approach combined historical avalanche records with snow cover and snow stability simulations to enhance predictive performance. While the inclusion of mechanically based stability indices improved detection rates, the study also emphasized the substantial class imbalance arising from the rarity of avalanche events.It is also important to note that most statistical approaches to avalanche forecasting struggle to adequately address the issue of class imbalance arising from the rarity of avalanche events [Manish K (2024)](https://www.researchgate.net/publication/387372340_Addressing_class_imbalance_in_avalanche_forecasting)
+
+Neural Nertworks are a result of scientific studies that aimed to study the activity of the human brain first given light to by [J .William (1890)](http://www.nlpinfocentre.com/downloads/apr2014/(Ebook)%20James,%20William%20-%20The%20Principles%20Of%20Psychology%20Vol%20I.pdf) Artifitial Neural Nertworks were first introduced by [Warren S. McCulloch & Walter Pitts, (1943)](https://link.springer.com/article/10.1007/BF02478259). In 1949, Donald Hebb introduced [Hebbian Learning](https://archive.org/details/in.ernet.dli.2015.226341/page/n1/mode/2up) , a straightforward learning rule for ANNs. In 1951, Marvin Minsky created the first ANN the SNARC Solver. Frank Rosenblatt developed the perceptron in 1958, which was an attempt to use neural network procedures for character recognition. Despite its success, the perceptron faced problems when it came to handling non-linearly separable data.
+
+![Neural Network](images/colored_neural_network.svg.png){fig-align="center" width="274"}
+
+# Data Description
+
+```{r}
+# Load libraries
+library(caret)
+library(corrplot)
+library(kableExtra)
+library(keras)
+library(scales)
+library(sf)
+library(tensorflow)
+library(tidyverse)
+
+# Load the data
+avalanche_original <- read.csv("scotland_avalanche_forecasts_2009_2025.csv")
+
+# Create a working copy
+avalanche_clean <- avalanche_original
+```
+
+The dataset used in this study consists of avalanche and snowpack observations collected in the Scottish Highlands. Original dataset covers a period of multiple winter seasons and contains a total of `r nrow(avalanche_clean)` recorded observations and `r ncol(avalanche_clean)` features. Each observation corresponds to a set of environmental and snowpack measurements taken at specific locations, with associated temporal and spatial information.
+
+The data include both numerical and categorical variables. Numerical variables capture continuous measurements such as air temperature (°C), summit air temperature (°C), altitude (m), wind speed (m/s), total snow depth (cm), snow temperature (°C), and slope incline (degrees). Several of these are directional or circular in nature, for example aspect (degrees), summit wind direction (degrees), and wind direction (degrees), which take values between 0° and 360°. Categorical variables describe snowpack characteristics and weather codes, such as precipitation code, snow crystal type, snow hardness gradients, rain at 900, and wetness categories. Spatial variables such as latitude and longitude are also included, enabling the linking of measurements to specific locations within the study area.
+
+Before cleaning, the dataset showed irregularities such as missing values, inconsistent coding (e.g., empty strings in categorical fields), and implausible measurements like negative snow depths or unusually high wind speeds. These irregularities will be addressed during the data cleaning process.
+
+# Data Cleaning
+
+## Initial Screening
+
+The raw data contained clear data quality issues, such as negative values in snowpack measurements, impossible altitude values (greater than 2000 m, while Scottish mountains are lower), or wind speeds exceeding realistic thresholds. Categorical variables also included empty strings or ambiguous encodings
+
+```{r}
+#| include: false
+
+str(avalanche_original)
+
+# Sort features in alphabetical order
+avalanche_clean <- avalanche_original %>% select(sort(names(.)))
+
+# Summary of missing values
+missing_values <- data.frame(
+  feature = names(avalanche_clean),
+  missing = colSums(is.na(avalanche_clean)),
+  total   = nrow(avalanche_clean),
+  row.names = NULL) %>% 
+  mutate(percent = round(100 * missing / total, 2))
+
+# Drop all rows with missing target variable (OAH) and variables with missingness >= 20%
+high_missing_features <- missing_values %>% filter(percent >= 20) %>% pull(feature)
+
+avalanche_clean <- avalanche_clean %>%
+  mutate(Area = case_when(
+    Area == "Creag Meagaidh"      ~ "C. Meagaidh",
+    Area == "Northern Cairngorms" ~ "N. Cairngorms",
+    Area == "Southern Cairngorms" ~ "S. Cairngorms",
+    TRUE ~ Area  # Leave other names unchanged
+    )
+  ) %>%
+  select(-all_of(high_missing_features)) %>%
+  filter(!is.na(OAH))
+
+# Check the number of rows with at least one missing observation
+sum(!complete.cases(avalanche_clean))
+```
+
+Two features exhibited the highest proportion of missing values in the dataset: *AV.Cat* (23.37%) and *Ski.Pen* (22.53%). Upon inspection, *AV.Cat* contained numerous invalid or out-of-range codes (e.g., 8800, 5031, -9999), indicating coding errors or placeholders for missing data, so it was dropped. The *Ski.Pen* variable, while mostly numeric, also contained sentinel values (e.g., -1) and a substantial number of missing entries, so it too was dropped. All rows with missing values in the target variable *OAH* were removed to ensure model training and evaluation used only known outcomes.
+
+## Standardisation of Variable Types
+
+```{r}
+#| include: false
+
+# Find the number of unique values per column
+# Inspect variables with few unique values (possible categorical / ordinal)
+unique_values <- sapply(avalanche_clean, \(x) length(unique(x)))
+unique_values[unique_values <= 10] %>% sort()
+
+# ---------- Quick helper function ----------
+
+# Function to replace values outside [min, max] with NA
+sanitize_range <- function(x, min = -Inf, max = Inf) {
+  x[x < min | x > max] <- NA
+  return(x)
+}
+
+# ---------- Possible categorical variables ----------
+
+# After inspection of possible categorical variables, more cleaning. 
+# Replace empty strings and invalid numeric values with NA.
+avalanche_clean <- avalanche_clean %>%
+  mutate(
+    Area = factor(Area),
+    Crystals = sanitize_range(Crystals, min = 0),
+    Drift = factor(Drift),
+    FAH = factor(ifelse(FAH == "", NA, FAH)),
+    Max.Hardness.Grad = factor(Max.Hardness.Grad, ordered = TRUE),
+    OAH = factor(ifelse(OAH == "", NA, OAH)),
+    Precip.Code = factor(as.numeric(gsub(" .*", "", Precip.Code)), ordered = TRUE),
+    Rain.at.900 = factor(Rain.at.900),
+    Wetness = sanitize_range(Wetness, min = 0)
+  )
+
+# Convert OAH and FAH to ordinal
+temp <- c("Low", "Moderate", "Considerable -", "Considerable +", "High")
+avalanche_clean <- avalanche_clean %>%
+  mutate(
+    FAH = factor(FAH, levels = temp, ordered = TRUE),
+    OAH = factor(OAH, levels = temp, ordered = TRUE)
+  )
+
+# ---------- Remaining (Numerical) variables ----------
+
+# Now, inspect the rest of the variables, ie replace nonsensical values with NA.
+avalanche_clean <- avalanche_clean %>%
+  mutate(
+    Alt = sanitize_range(Alt, 0, 2000), # Scotland's mountains are all <2000m
+    Aspect = sanitize_range(Aspect, min = 0) %% 360, # Range of degrees is [0,360] 
+    Cloud = sanitize_range(Cloud, 0, 100),   # Range of percentage is [0, 100]
+    Date = as.POSIXct(Date, format = "%Y-%m-%d %H:%M:%S"), # Convert to dateTime
+    Foot.Pen = sanitize_range(Foot.Pen, 0, 200),
+    Incline = sanitize_range(Incline, 0, 90),  # Range for incline slopes is [0,90]
+    Insolation = sanitize_range(Insolation, 0, 20),
+    No.Settle = sanitize_range(No.Settle, min = 0),
+    Snow.Index = sanitize_range(Snow.Index, min = 0),
+    Snow.Temp = sanitize_range(Snow.Temp, -30, 10),
+    Summit.Wind.Dir = sanitize_range(Summit.Wind.Dir, min = 0) %% 360,
+    Summit.Wind.Speed = sanitize_range(Summit.Wind.Speed, min = 0), # in miles per hour
+    Total.Snow.Depth = sanitize_range(Total.Snow.Depth, 0, 1000),
+    Wind.Dir = sanitize_range(Wind.Dir, min = 0) %% 360,            # in miles per hour
+    Wind.Speed = sanitize_range(Wind.Speed, 0, 150)
+  ) %>%
+  select(-Location, -Obs, -OSgrid)
+```
+
+Categorical variables such as *Area*, *Drift*, *Rain at 900 m*, and *Hardness Grades* were explicitly converted to factors, while ordered categories (e.g., hardness grades) were encoded with a natural ordering. Temporal information was converted into a consistent date-time format. Continuous variables (e.g., temperature, snow depth, wind speed) were retained as numeric values.
+
+### Sanitation of Numerical Ranges {.notoc}
+
+To ensure numerical plausibility, a cleaning function was applied to replace values outside reasonable ranges with NA. For example:
+
+-   Altitude values were restricted to 0–2000 m.
+
+-   Aspect and wind direction values were adjusted to fall within 0–360°.
+
+-   Cloud cover percentages were constrained between 0–100.
+
+-   Inclination angles were limited to 0–90°.
+
+-   Snow and air temperatures were bounded between -30 °C and 10 °C.
+
+-   Total snow depth was capped at 1000 cm.
+
+-   Wind speed values were capped at 150 mph to remove implausible outliers.
+
+## Handling Missing Values
+
+```{r}
+# Summary of missing values after handling nonsensical values
+temp <- data.frame(
+  feature = names(avalanche_clean),
+  missing = colSums(is.na(avalanche_clean)),
+  total   = nrow(avalanche_clean),
+  row.names = NULL) %>% 
+  mutate(percent = round(100 * missing / total, 2))
+
+# Remove all remaining observations with at least one NA entry
+avalanche_clean <- na.omit(avalanche_clean)
+duplicates <- duplicated(avalanche_clean) %>% sum()
+```
+
+After data sanitation, variables with significant missingness (e.g., *Summit Wind Direction, Crystals, Summit Wind Speed*) were carefully reviewed. Additionally, variables deemed uninformative for the analysis (such as *Location, Obs* and *OSgrid*) were dropped. Removing all rows with missing values resulted in a dataset of approximately 6,800 complete observations (from an initial \~10,600). Duplicate records were also checked for, and none were found. This reduction was expected, as cleaning removed implausible and incomplete records. Given the sufficient size of the cleaned dataset, imputation was not performed.
+
+# Exploratory Data Analysis (EDA) {.unnumbered}
+
+```{r}
+# Initialize list to store variable names by data type
+var_names <- list()
+
+# Date/time variable(s)
+var_names$datetime <- c("Date")
+
+# Spacial variables
+var_names$spatial <- c("longitude", "latitude")
+
+# Circular variables (directional angles in degrees)
+var_names$circular <- c("Aspect", "Wind.Dir", "Summit.Wind.Dir")
+
+# Ordinal variables (ordered categorical, e.g., Low < Moderate < High)
+var_names$ordinal <- avalanche_clean %>% 
+  select(where(~ is.factor(.x) && is.ordered(.x))) %>%
+  names()
+
+# Nominal categorical variables (unordered factors)
+var_names$categoric <- avalanche_clean %>% 
+  select(where(~ is.factor(.x) && !is.ordered(.x))) %>%
+  names()
+
+# Numeric variables excluding circular (which are numeric but treated differently)
+var_names$numeric <- avalanche_clean %>%
+  select(where(is.numeric)) %>%
+  select(-all_of(var_names$circular)) %>%
+  select(-all_of(var_names$spatial)) %>%
+  names()
+```
+
+The exploratory data analysis (EDA) aims to summarize the main characteristics of the dataset, uncover patterns, detect anomalies, and identify relationships between variables. This process provides insights that guide further modelling and feature engineering.
+
+# Univariate Exploration
+
+## Numerical Variables
+
+A detailed five-point summary of all continuous variables is provided in the Appendix, see @tbl-summary-numeric. Here we comment on the summary, the key ranges and any obvious anomalies. We also give a comment on the boxplots in @fig-summary-numeric.
+
+```{r}
+# A list to store long-format versions of the data for each relevant variable type
+avalanche_long <- list()
+
+# A list to store summaries of the data for relevant variable types
+avalanche_summary <- list()
+
+# First, pivot only the numeric variables to long format
+avalanche_long$numeric <- avalanche_clean %>%
+  select(all_of(var_names$numeric)) %>%  # Only numeric variables
+  pivot_longer(everything(), names_to = "variable", values_to = "value")
+
+# Summary statistics for each numeric variable
+avalanche_summary$numerical <- avalanche_long$numeric %>%
+  group_by(variable) %>%
+  summarise(
+    min = min(value), Q1 = quantile(value, 0.25), Q2 = median(value),
+    Q3 = quantile(value, 0.75), max = max(value), mean = mean(value),
+    std = sd(value), .groups = "drop"
+  ) %>% as.data.frame()
+```
+
+The summary of the numeric variables in the dataset reveals notable patterns in their distributions. Air temperature (*Air Temp*) ranges from -10.8°C to 14°C with a median of -0.4°C, indicating generally cold conditions, while altitude (*Alt*) spans from 113 m to 1,300 m, with most observations clustered around 920 m. Variables such as *Crystals* and *Snow Index* are highly skewed, with medians of 0, showing that most observations recorded no crystals or snow index. Other variables, including *Foot Pen* and *Total Snow Depth*, exhibit long upper tails, with extreme maximum values of 120 cm and 590 cm, respectively. Snow and wind-related variables, such as *Summit Wind Speed* and *Wind Speed*, show considerable spread, with maximums far exceeding typical values (355 mph and 110 mph, respectively), suggesting occasional extreme events. Overall, the means generally reflect the central tendency but are influenced by these extreme observations, highlighting the importance of visualizing distributions alongside summary statistics to fully understand the data.
+
+@fig-summary-numeric shows boxplots for all numeric features in the avalanche dataset. Several variables, such as *Foot Pen*, *Summit Wind Speed,* and *Total Snow Depth*, exhibit extreme outliers and skewed distributions, indicating rare but significant events. Others, like *Air.Temp* and *Incline* display more symmetric distributions with fewer extreme points. Zero-inflated features such as *Crystals*, *Max.Temp.Grad*, and *Snow.Index* suggest frequent absence of measurements or specific avalanche conditions. The colour-coded outliers (mild vs. extreme) help highlight deviations from the typical range, which may warrant further investigation or transformation prior to modelling.
+
+```{r}
+#| fig.height: 9
+#| fig.width: 8
+#| label: fig-summary-numeric
+#| fig.cap: "Facetted boxplots of all the numeric variables, highlighting mild (orange) and extreme (red) outliers. Outliers were defined based on the interquartile range (IQR): values beyond 1.5×IQR from Q1 or Q3 are mild, and values beyond 3×IQR are extreme."
+
+numeric_outliers <- avalanche_long$numeric %>%
+  group_by(variable) %>%
+  mutate(
+    Q1 = quantile(value, 0.25),
+    Q3 = quantile(value, 0.75),
+    IQR = Q3 - Q1,
+    extreme_outlier = value < (Q1 - 3*IQR) | value > (Q3 + 3*IQR),
+    mild_outlier = (value < (Q1 - 1.5*IQR) | value > (Q3 + 1.5*IQR)) & 
+      !extreme_outlier
+  ) %>% 
+  ungroup()
+
+# plot of the boxplots
+ggplot(numeric_outliers, aes(x = variable, y = value)) +
+  geom_boxplot(outlier.shape = NA) +  # suppress default outliers
+  geom_point(data = filter(numeric_outliers, mild_outlier), 
+             aes(color = "Mild"), size = 0.75) +
+  geom_point(data = filter(numeric_outliers, extreme_outlier), 
+             aes(color = "Extreme"), size = 0.75) +
+  scale_color_manual(values = c("Mild" = "orange", "Extreme" = "red")) +
+  facet_wrap(~ variable, scales = "free", ncol = 4) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_blank(),
+    axis.ticks.x = element_blank(),
+    strip.text = element_text(size = 8),  # Customize facet label text
+    strip.background = element_rect(fill = "white"), 
+    panel.spacing = unit(1, "lines"),  # Adjust the space between facets (boxes)
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "bottom",
+    legend.direction = "horizontal"  # make the legend horizontal
+  ) +
+  labs(x = NULL, y = "Value", color = "Outlier Type", 
+       subtitle = "Boxplots of All Numeric Avalanche Features")
+```
+
+\newpage
+
+### Outliers
+
+```{r}
+#| fig.height: 3
+#| fig.width: 5
+#| fig.align: "center"
+#| label: fig-barplot-outliers
+#| fig.cap: "Number of extreme outliers per variable, based on the IQR rule; extreme means beyond 3×IQR."
+
+# Count the number of outliers (mild and extreme) for each variable
+plot_df <- numeric_outliers %>% 
+  group_by(variable) %>%
+  summarise(
+    mild_count = sum(mild_outlier),
+    extreme_count = sum(extreme_outlier),
+  ) %>%
+  arrange(variable) %>% 
+  ungroup()
+
+# Barplot for the number of outliers (extreme) for each variable
+ggplot(plot_df, aes(x = variable, y = extreme_count)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = extreme_count), 
+            vjust = -0.3, size = 2.5) +
+  expand_limits(y = max(plot_df$extreme_count) * 1.05) +  # Add 10% headroom
+  theme_minimal() + 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1.1, vjust = 1.11, size = 7),  
+    axis.title = element_text(size = 8),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  labs(
+    x = "Features/Variables", 
+    y = "No. of Extreme Outliers",
+    subtitle = "Number of Extreme Outliers per Variable"
+  )
+```
+
+Most variables have few extreme outliers based on the IQR rule. The only exceptions are the zero-inflated variables *Crystals* and *Snow.Index*. Outliers are minimal relative to the dataset size. All features will be standardized, and outliers will be reassessed in the transformed space. Overall, outliers are unlikely to significantly affect the analysis.
+
+**Note:** Although correlation plots are typically presented after examining individual feature distributions, the correlation plot is shown first here for better organization and to avoid leaving large areas of white space.
+
+### Correlation
+
+The correlation analysis shows that most variables are weakly correlated, with the exception of the temperature-related variables (e.g., *Air.Temp*, *Snow.Temp*, *Summit.Air.Temp*), which display moderate positive correlations. Notably, *Air.Temp* is moderately correlated with both *Summit.Air.Temp* (0.87) and *Snow.Temp* (0.67), reflecting expected temperature relationships in mountainous conditions.
+
+```{r}
+#| fig.height: 3.3
+#| fig.width: 6
+#| fig.cap: "Heatmap of Pearson correlation coefficients among all numeric avalanche features."
+
+avalanche_correlation <- avalanche_clean %>% 
+  select(all_of(var_names$numeric)) %>% 
+  cor(method = "pearson")
+
+corrplot(
+  avalanche_correlation,
+  method = "color",        # colored squares
+  type = "upper",          # only upper triangle
+  tl.col = "black",        # text labels color
+  tl.srt = 45,             # rotate labels
+  tl.cex = 0.4,            # label size
+  addCoef.col = "black",   # show correlation numbers
+  number.cex = 0.4,        # size of numbers
+  diag = FALSE,            # optionally hide diagonal
+  addgrid.col = "white"    # lines between cells
+)
+
+avalanche_long$correlation <- as.data.frame(avalanche_correlation) %>%
+  rownames_to_column("Variable1") %>%   # Convert row names into a column
+  pivot_longer(
+    cols = -Variable1,              # Keep "Variable1" as is
+    names_to = "Variable2",         # Make column names into a new column
+    values_to = "Correlation"       # Put the values in the "Correlation" column
+  ) %>%
+  # Keep only the diagonal and upper triangular part (to avoid duplicates)
+  filter(Variable1 <= Variable2) %>% 
+  distinct() %>%
+  as.data.frame()
+```
+
+### Density of the Features
+
+The density plots reveal diverse distributions among the numeric features. Temperature-related variables (*Air.Temp* and *Summit.Air.Temp*) display approximately symmetric or normal-like distributions. In contrast, several variables such as *Foot.Pen,* *Summit.Wind.Speed*, and *Total.Snow.Depth* exhibit heavy right-skewness. Features like *Crystals*, *Insolation*, and *Wetness* show multimodality suggesting underlying subgroups. Other features like *Max.Temp.Grad* and *Snow Index* show irregular patterns. These non-normal distributions and skewed shapes suggest the need for data transformation or standardization.
+
+```{r}
+#| fig.height: 9
+#| fig.width: 8
+#| fig.cap: "Density plots of all avalanche variables illustrating the varying distributions."
+
+avalanche_long$numeric %>%
+  ggplot(aes(x = value)) + geom_density() +
+  facet_wrap(~ variable, scales = "free", ncol = 4) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(size = 7),
+    panel.grid.minor = element_blank(),
+    panel.grid.major = element_blank(),
+    plot.subtitle = element_text(hjust = 0.5),
+    strip.text = element_text(size = 8),  # Customize facet label text
+    strip.background = element_rect(fill = "white")
+  ) +
+  labs(
+    x = NULL, y = "Density", 
+    subtitle = "Density Plots of All Numeric Avalanche Features"
+  )
+```
+
+## Categorical Variables
+
+```{r}
+#| fig.height: 3
+#| fig.width: 6
+#| label: "fig-distribution-categorical"
+#| fig.cap: "Distribution of categorical variables: Areas, Drift, and Rain at 900."
+
+avalanche_summary$categoric <- avalanche_clean %>%
+  select(all_of(var_names$categoric)) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "level") %>%
+  count(variable, level) %>%
+  group_by(variable) %>%
+  mutate(percentage = round(100 * n / sum(n), 2))
+
+avalanche_summary$categoric %>%
+  #mutate(level = str_wrap(level, width = 10)) %>%
+  ggplot(aes(x = level, y = n)) +
+  geom_bar(stat = "identity") + 
+  geom_text(aes(label = n), vjust = -0.5, size = 2) +  # Add numbers above bars
+  expand_limits(y = max(avalanche_summary$categoric$n) * 1.05) +  # Add 10% headroom
+  facet_wrap(~ variable, scales = "free_x") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
+    axis.title = element_text(size = 9),
+    strip.text = element_text(size = 8),
+    strip.background = element_rect(fill = "white"),
+    panel.spacing = unit(1, "lines"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  labs(
+    subtitle = "Distribution of Categorical Variables",
+    x = "Categories/Levels",
+    y = "Count"
+  )
+```
+
+<!--# Leave empty space here -->
+
+```{r}
+#| fig.height: 5
+#| fig.width: 6
+#| fig-pos: "H"
+#| label: "fig-distribution-ordinal"
+#| fig.cap: "Distribution of ordinal variables: OAH, FAH, Precip Code and Hardness Grad."
+
+# Summarise ordinal variables: long format with counts per level
+avalanche_summary$ordinal <- avalanche_clean %>%
+  select(all_of(var_names$ordinal)) %>%
+  mutate(across(everything(), as.character)) %>%   # <- convert before pivot
+  pivot_longer(everything(), names_to = "variable", values_to = "level") %>%
+  filter(!is.na(level)) %>%
+  count(variable, level, name = "n")
+
+# Apply the correct ordering to levels based on the variable
+plot_df <- avalanche_summary$ordinal %>% 
+  mutate(level = factor(level, c(levels(avalanche_clean$FAH), c(0:6, 8, 10))))
+
+# Plot ordinal variable distributions
+ggplot(plot_df, aes(x = level, y = n)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = n), vjust = -0.5, size = 2) +
+  expand_limits(y = max(plot_df$n) * 1.1) +  # 10% headroom
+  facet_wrap(~ variable, scales = "free_x") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 6),
+    axis.title = element_text(size = 9),
+    strip.text = element_text(size = 8),
+    strip.background = element_rect(fill = "white"),
+    panel.spacing = unit(1, "lines"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  labs(
+    subtitle = "Distribution of Ordinal Variables",
+    x = "Categories/Levels",
+    y = "Count"
+  )
+```
+
+\newpage
+
+Nominal: @fig-distribution-categorical above shows that observations are fairly well distributed across the six areas, with the Northern Cairngorms (21.0%) and Lochaber (19.1%) having the highest representation, while Torridon accounts for the fewest cases. For drift conditions, slightly more than half of the observations reported no drift (56.4%), while 43.6% recorded drift. *Rainfall at 900* was absent in the majority of cases, with only 16.4% of observations indicating rain.
+
+Ordinal: From @fig-distribution-ordinal, the distribution of ordinal variables shows clear imbalances in category frequencies. Most observations fall into lower or moderate levels. For instance, *Low* and *Moderate* dominate in both *FAH* and *OAH*, while *Precip.Code* is heavily concentrated at 0, indicating frequent absence of precipitation.
+
+# Bivariate Exploration
+
+## OAH vs Quantitative Predictors
+
+\vspace{-1em}
+
+```{r}
+#| fig.height: 7.5
+#| fig.width: 8
+#| label: fig-response-vs-numeric
+#| fig.cap: "Boxplots of numeric features grouped by OAH levels. That is, continuous variables vs response variable."
+
+plot_df <- avalanche_clean %>%
+  select(all_of(var_names$numeric), OAH) %>%
+  pivot_longer(-OAH, names_to = "Variable", values_to = "Value")
+
+# Facetted boxplot
+ggplot(plot_df, aes(x = OAH, y = Value)) +
+  geom_boxplot(outlier.size = 0.7, outlier.alpha = 0.6) +
+  facet_wrap(~ Variable, scales = "free_y") +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    strip.text = element_text(size = 8),
+    strip.background = element_rect(fill = "white"),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    plot.subtitle = element_text(hjust = 0.5)
+  ) +
+  labs(
+    subtitle = "Boxplots of Numeric Variables Grouped by OAH",
+    x = "OAH (Observed Avalanche Hazard)",
+    y = "Value"
+  )
+```
+
+Based on @fig-response-vs-numeric, higher OAH levels (e.g., "Considerable +" and "High") are associated with increased values in variables such as *Foot Pen***,** *Summit Wind Speed***,** *Total Snow Depth*, and *Wind Speed*, suggesting deeper, and more wind-affected snow conditions contribute to avalanche risk. Additionally, looking at the temperature-related variables lower temperatures tend to be associated with higher avalanche risk.
+
+## OAH vs Qualitative Predictors
+
+```{r}
+#| fig.height: 5
+#| fig.width: 6
+#| label: fig-response-vs-categoric
+#| fig.cap: "Proportional distribution of the OAH variable across levels of each categorical predictor."
+
+# Select both categorical and ordinal variables and pivot to long format
+plot_df <- avalanche_clean %>%
+  select(all_of(c(var_names$ordinal, var_names$categoric))) %>%
+  mutate(across(everything(), as.character)) %>%
+  mutate(OAH = factor(OAH, levels = levels(avalanche_clean$OAH))) %>% # order
+  pivot_longer(cols = -OAH, names_to = "variable", values_to = "category")
+
+# Ordering of the x-axis
+temp <- setdiff(c(var_names$ordinal, var_names$categoric), "OAH")
+temp <- sapply(avalanche_clean[, temp], levels) %>% unlist() %>% unique()
+plot_df <- plot_df %>% mutate(category = factor(category, temp))
+
+# Facetted plot
+ggplot(plot_df, aes(x = category, fill = OAH)) +
+  geom_bar(position = "fill",  alpha = 0.6) +
+  facet_wrap(~ variable, scales = "free_x") +
+  scale_fill_viridis_d(option = "C", direction = 1) +
+  theme_classic() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 7),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    legend.direction = "horizontal"  # make the legend horizontal
+  ) +
+  labs(
+    y = "Proportion", x = NULL,
+    subtitle = "Proportion of OAH Across Qualitative (Nominal & Ordinal) Features"
+  )
+
+# Store result for those who want more details
+avalanche_summary$target.categoric <- avalanche_clean %>%
+  select(all_of(c(var_names$ordinal, var_names$categoric))) %>%
+  mutate(across(everything(), as.character)) %>%
+  pivot_longer(cols = -OAH, names_to = "variable", values_to = "category") %>%
+  group_by(variable, category, OAH) %>%
+  tally() %>%
+  group_by(variable, category) %>%
+  mutate(prop = n / sum(n))  # Calculate proportions within each category
+```
+
+Proportional analysis reveals that lower hazard levels ("Low" and "Moderate") dominate across all predictors, while higher hazard levels (i.e. "High" and the two “Considerable” subcategories) occur much less frequently. This imbalance in the target variable distribution should be accounted for in subsequent modelling. Additionally, the separation of the “Considerable” class into two sublevels suggests a potential need to reassess their grouping for improved interpretability.
+
+# Transformation and Standardisation
+
+```{r}
+#-------------------
+# Transforming Circular Variables
+#-------------------
+avalanche_tranform <- avalanche_clean %>%
+  mutate(across(
+    all_of(var_names$circular),
+    list(Sin = ~ sin(. * pi/180), Cos = ~ cos(. * pi/180)),
+    .names = "{.col}.{fn}"
+    )
+  ) %>%
+  select(-all_of(var_names$circular))
+
+#-------------------
+# Transforming Spatial Variables
+#-------------------
+
+# Project spatial data (lat/lon) onto a planar coordinate system (x,y)
+avalanche_tranform <- avalanche_tranform %>% 
+  st_as_sf(coords = c("longitude", "latitude"), crs = 4326) %>%
+  st_transform(avalanche_sf, crs = 32633)
+
+# Extract x and y coordinates
+coords <- st_coordinates(avalanche_tranform)
+avalanche_tranform$Spatial.X <- coords[,1]
+avalanche_tranform$Spatial.Y <- coords[,2]
+
+# Drop the spatial geometry column
+avalanche_tranform <- st_drop_geometry(avalanche_tranform)
+
+#-------------------
+# Standardisation
+#-------------------
+avalanche_tranform <- avalanche_tranform %>% select(-Date) %>%
+  mutate(across(where(is.numeric), ~ scale(.)[, 1]))
+```
+
+**Transforming Circular and Spatial Variables**
+
+Several variables in the dataset, such as *Aspect*, *Summit.Wind.Direction*, and *Wind.Dir*, are circular in nature, meaning that their values wrap around at 360°. Standard linear treatments of such variables can be misleading, since values near 0° and 360° are numerically distant but represent almost the same orientation. To address this, each circular variable was transformed into two new features using trigonometric encoding: the sine and cosine of the angle (converted to radians). This transformation preserves the cyclic structure of the data and ensures that angular proximity is correctly represented in the feature space.
+
+**Transforming Spatial Variables**
+
+Similarly, the geographic coordinates (*longitude* and *latitude*) were projected into a planar coordinate system using an appropriate map projection. This transformation produced new features (*Spatial.X* and *Spatial.Y*) that express locations in meters rather than degrees, avoiding distortions inherent in raw geographic coordinates.
+
+\newpage
+
+**Standardisation**
+
+Because the variables are on very different scales, and neural networks are scale-sensitive, standardization is needed so that all features, specifically non-categorical ones, contribute fairly. We chose z-score scaling because it preserves relative distances and variance. Other alternatives like min–max scaling maps values to a fixed range (typically $[0,1]$), and can compress extreme values making them appear less extreme.
+
+# Modelling: Neural Networks
+
+The `build_model` function constructs a configurable feedforward neural network using Keras. The architecture consists of an input layer, one or more hidden layers with ReLU activation, optional dropout for regularization, and a softmax output layer. The network is compiled using the Adam optimizer with a user-specified learning rate and sparse categorical cross-entropy loss for integer-encoded multi-class targets.
+
+The `train_model` function trains the network on the provided dataset with optional early stopping and model checkpointing. A portion of the training data is reserved for validation. Training parameters, such as batch size, number of epochs, and validation split, are configurable. Early stopping monitors the validation loss to prevent overfitting, while the checkpoint ensures the best-performing model is saved.
+
+## **Architecture (Model Configuration)**
+
+\begin{table}[H] 
+\centering
+\caption{Configurable Neural Network Model (R Keras Implementation)}
+\begin{tabular}{|l|p{3.5cm}|p{8cm}|}
+\hline
+\textbf{Layer / Step} & \textbf{Description} & \textbf{Parameters / Notes} \\
+\hline
+Input Layer & Input feature vector & Dimension = number of predictors (n\_inputs) \\
+\hline
+Hidden Layer(s) & Dense, ReLU & Units = hidden\_units (configurable vector), Activation = ReLU, Dropout applied after each layer (dropout\_rate) \\
+\hline
+Output Layer & Dense, Softmax & Units = n\_outputs (number of classes), Activation = Softmax \\
+\hline
+Compilation & Loss, Optimizer & Loss = sparse categorical cross-entropy, Optimizer = Adam (learning\_rate) \\
+\hline
+Training & Epochs, Batch size & Epochs = epochs (default 50), Batch size = batch\_size (default 32), Validation split = valid\_split (default 0.2) \\
+\hline
+Callbacks & Regularization & Early stopping: monitor val\_loss, patience 10, restore best weights; Model checkpoint: saves best model based on val\_loss \\
+\hline
+Evaluation & Metrics & Accuracy during training; additional evaluation (confusion matrix, precision/recall) computed post-training \\
+\hline
+\end{tabular}
+\end{table}
+
+```{r}
+# Preprocessing of the dataset before building the neural network.
+
+# Convert all qualitative variables to integer-encoding
+temp <- c(var_names$ordinal, var_names$categoric) %>% sort()
+avalanche_tranform <- avalanche_tranform %>%
+  mutate(across(where(is.factor), ~ as.integer(.) - 1)) %>%
+  mutate(across(all_of(temp), as.factor))
+
+# One-hot encode nominal variables
+dummies <- dummyVars(~ ., data = avalanche_tranform[, var_names$categoric])
+one_hot <- predict(dummies, newdata = avalanche_tranform[, var_names$categoric])
+one_hot <- as.data.frame(one_hot) 
+
+# Combine one-hot encoding with the other data
+avalanche_tranform <- avalanche_tranform %>%
+  mutate(across(where(is.factor), ~ as.integer(.) - 1)) %>%
+  select(-all_of(var_names$categoric)) %>%
+  bind_cols(one_hot)
+```
+
+<!-- Splitting of the data -->
+
+```{r}
+# Set up the training and test data.
+set.seed(123)
+
+# Split the data (80% train, 20% test)
+trainIndex <- createDataPartition(avalanche_tranform$OAH, p = 0.8)[[1]]
+train_data <- avalanche_tranform[trainIndex, ]
+test_data <- avalanche_tranform[-trainIndex, ]
+
+# Features = everything except OAH
+x_train <- train_data %>% select(-OAH) %>% as.matrix()
+x_test  <- test_data %>% select(-OAH) %>% as.matrix()
+
+# Target = OAH as integers
+y_train <- train_data %>% pull(OAH) %>% as.integer()
+y_test  <- test_data %>% pull(OAH) %>% as.integer()
+```
+
+<!-- Functions to use for the neural network -->
+
+```{r}
+#-------------------------------------------------------------------
+# build_model: Constructs and compiles a Keras neural network with 
+# the specified input size, hidden layers, output classes, etc.
+#-------------------------------------------------------------------
+build_model <- function(n_inputs, hidden_units = c(64), n_outputs, 
+                        dropout_rate = 0.3, learning_rate = 0.001) {
+  
+  # ---- Input layer ----
+  input <- layer_input(shape = n_inputs)
+
+  # ---- Hidden layer(s) ----
+  # You can change hidden_units to add more layers
+  # E.g. hidden_units = c(4, 9) two hidden layers with 4 & 9 neurons, resp.
+
+  hidden <- input
+  for (units in hidden_units) {
+    hidden <- hidden %>% 
+      layer_dense(units = units, activation = "relu") %>%
+      layer_dropout(rate = dropout_rate)
+  }
+  
+  # ---- Output layer ----
+  # Number of classes = unique OAH levels
+  output <- hidden %>% layer_dense(units = n_outputs, activation = "softmax")
+  
+  # ---- Define model ----
+  model <- keras_model(inputs = input, outputs = output)
+  
+  # ---- Compile model ----
+  model %>% compile(
+    optimizer = optimizer_adam(learning_rate = learning_rate),
+    loss = "sparse_categorical_crossentropy",  # integer-encoded ordinal target
+    metrics = "accuracy"
+  )
+  
+  return(model)
+}
+
+
+#-------------------------------------------------------------------
+# train_model: Trains a Keras neural network on the provided data, 
+# applying early stopping and saving the best model automatically.
+#-------------------------------------------------------------------
+train_model <- function(model, x_train, y_train, valid_split = 0.2, 
+                        epochs = 50, batch_size = 32, verbose = 1,
+                        checkpoint_path = "data/best_model.h5") {
+  
+  # Define early stopping criterion
+  early_stop <- callback_early_stopping(
+    monitor = "val_loss",         # or "val_accuracy"
+    patience = 10,                # stop if no improvement for 10 epochs
+    restore_best_weights = TRUE,  # revert to best weights at the end
+    verbose = 1
+  )
+  # Define checkpoint callback
+  checkpoint <- callback_model_checkpoint(
+    filepath = checkpoint_path,
+    monitor = "val_loss",         # or "val_accuracy"
+    save_best_only = TRUE,
+    save_weights_only = FALSE,    # save full model not just weights
+    verbose = verbose
+  )
+  
+  # Train the Model
+  history <- model %>% fit(
+    x_train, y_train,
+    validation_split = valid_split, # 20% of train data for validation,
+    epochs = epochs,
+    batch_size = batch_size,
+    callbacks = list(checkpoint, early_stop)
+  )
+
+  return(history)
+}
+```
+
+```{=html}
+<!-- 
+Function to be used to match the predictor set names to x_train names
+-->
+```
+
+```{r}
+# Adjusts variable names based on type so they can be extracted from x_train
+adjust_names <- function(input_names, var_names, data) {
+  flatten_chr(map(input_names, function(name) {
+    if (name %in% var_names$circular) {
+      c(paste0(name, ".Sin"), paste0(name, ".Cos"))
+    } else if (name %in% var_names$categoric && name %in% names(data)) {
+      paste0(name, ".", seq_len(length(unique(data[[name]]))) - 1)
+    } else {
+      name
+    }
+  }))
+}
+```
+
+```{=html}
+<!-- 
+Build and train the neural network.
+NOTE: Models were tuned using the file nn_hyperparameter_tuning.R
+Best models were saved after to be loaded for later.
+-->
+```
+
+The target variable, representing the forecast avalanche hazard level, was encoded as an ordinal categorical variable using the following class labels:
+
+| Class Label | Meaning        |
+|-------------|----------------|
+| 0           | Low            |
+| 1           | Moderate       |
+| 2           | Considerable − |
+| 3           | Considerable + |
+| 4           | High           |
+
+\newpage
+
+## Model 1: Topography Model
+
+The model has an accuracy of 74.82% when you apply (*longitude:Incline*)
+
+```{r}
+#| fig-align: "center"
+
+#-----------------------------
+# Get features names belonging to predictor set in consideration
+#-----------------------------
+predictors <- avalanche_original %>% 
+  select(
+    longitude:Incline, 
+    -all_of(high_missing_features),
+    Area, FAH) %>%
+  names() %>% sort()
+
+predictor_set1 <- adjust_names(predictors, var_names, avalanche_clean) %>%
+  setdiff(c("latitude", "longitude")) %>% c("Spatial.X", "Spatial.Y")
+
+#-----------------------------
+# Load already trained model
+#-----------------------------
+# Adjust the code in the file nn_hyperparameter_tuning.R for tuning
+# Note: We've already trained our model, so here we just load the results
+load_model_components <- function(name) {
+  list(
+    model = keras::load_model_hdf5(paste0("data/", name, "_bestfit.h5")),
+    history = readRDS(paste0("data/", name, "_history.rds")),
+    tuning = readRDS(paste0("data/", name, "_tuning.rds"))
+  )
+}
+
+components <- load_model_components("model1")
+model1 <- components$model
+
+#-----------------------------
+# Function to plot the history
+#-----------------------------
+plot_history <- function(history) {
+  plot_df <- as.data.frame(history$metrics) %>%
+    mutate(epoch = seq_len(nrow(.))) %>%
+    pivot_longer(cols = -epoch, names_to = "metric", values_to = "value") %>%
+    mutate(
+      # Group metrics into broader categories
+      metric_group = case_when(
+        grepl("loss", metric) ~ "Loss",
+        grepl("accuracy", metric) ~ "Accuracy",
+        TRUE ~ "Other"
+      ),
+      # Add a column for dataset type: training vs validation
+      dataset = case_when(
+        grepl("val_", metric) ~ "Validation",
+        TRUE ~ "Training"
+      )
+    ) %>%
+    # Reorder the factor levels so "Loss" comes before "Accuracy"
+    mutate(metric_group = factor(
+      metric_group, levels = c("Loss", "Accuracy", "Other")))
+
+  plot <- ggplot(plot_df, aes(x = epoch, y = value, color = dataset)) +
+    geom_point(size = 2, shape = 16) + 
+    geom_line(linewidth = 0.7) +
+    facet_wrap(~ metric_group, scales = "free_y", ncol = 1) + 
+    labs(
+      subtitle = "Training History",
+      x = "Epoch",
+      y = "Metric Value",
+      color = "Dataset:"
+    ) +
+    theme_bw() +
+    theme(plot.subtitle = element_text(hjust = 0.5))
+  
+  return(plot)
+}
+
+plot_history(components$history)
+
+#-----------------------------
+# Evaluation of the model
+#-----------------------------
+evaluate_model <- function(model, x_test, y_test, predictors = NULL) {
+  # Select predictors if specified, otherwise use all columns
+  x_input <- if (is.null(predictors)) x_test else x_test[, predictors]
+  
+  # Evaluate the model
+  score <- model %>% evaluate(x_input, y_test, verbose = 0)
+  
+  # Predict class 
+  y_pred <- model %>% predict(x_input) # probabilities
+  y_pred <- max.col(y_pred) - 1   # zero-based indexing
+  
+  # Confusion matrix (NB: ensure matching factor levels)
+  true_levels <- levels(factor(y_test))
+  y_pred <- factor(y_pred, levels = true_levels)
+  y_test <- factor(y_test, levels = true_levels)
+  cm <- confusionMatrix(factor(y_pred), factor(y_test))
+  
+  # Return everything
+  return(list(
+    loss = score["loss"],
+    accuracy = score["accuracy"],
+    confusion_matrix = cm
+  ))
+}
+
+# Evaluate the best model from file
+results <- evaluate_model(model1, x_test, y_test, predictor_set1)
+
+# Access components:
+kable(t(round(results$confusion_matrix$byClass[, -c(3,4,9,10)], 2)))
+```
+
+The classification metrics across the five avalanche hazard classes reveal severe imbalance, with the model biased toward Low, Moderate, and Considerable−, while completely neglecting Considerable+ and High. Low exhibits strong detection, with sensitivity of 0.79 and specificity of 0.99, capturing most true instances while rarely misclassifying others. Precision is very high at 0.98, and balanced accuracy is 0.89, indicating reliable performance for this majority class. Moderate shows moderate detection, with sensitivity of 0.73 and specificity of 0.86. Precision drops to 0.70, and balanced accuracy of 0.79 suggests the model detects many true positives but misclassifies a notable proportion.
+
+Considerable− achieves very high sensitivity (0.92), meaning nearly all true instances are detected. However, precision is only 0.56, reflecting frequent misclassification from other classes. Balanced accuracy is 0.87, showing decent overall detection despite noisy predictions. Considerable+ and High are entirely ignored, with sensitivity, detection rate, and detection prevalence all equal to 0. Specificity remains perfect at 1.00, but this is meaningless because the model never predicts these classes. Precision and F1-scores are undefined, and balanced accuracy defaults to 0.50, reflecting complete failure for minority classes.
+
+The model's accuracy of 0.75 masks severe class imbalance: while majority classes dominate predictions, the model cannot detect rare hazard levels, rendering it unreliable for comprehensive avalanche hazard assessment.
+
+## Model 2: Weather Model
+
+The model has an accuracy of 74.90% when you apply (*Air.Temp:Summit.Wind.Speed*)
+
+```{r}
+#| fig-align: "center"
+
+#-----------------------------
+# Get features names belonging to predictor set in consideration
+#-----------------------------
+predictors <- avalanche_original %>% 
+  select(
+    Air.Temp:Summit.Wind.Speed, 
+    -all_of(high_missing_features),
+    Area, FAH) %>%
+  names() %>% sort()
+
+predictor_set2 <- adjust_names(predictors, var_names, avalanche_clean)
+
+#-----------------------------
+# Load already trained model
+#-----------------------------
+# Adjust the code in the file nn_hyperparameter_tuning.R for tuning
+# Note: We've already trained our model, so here we just load the results
+components <- load_model_components("model2")
+model2 <- components$model
+
+# Plot history
+plot_history(components$history)
+
+#-----------------------------
+# Evaluation of the model
+#-----------------------------
+results <- evaluate_model(model2, x_test, y_test, predictor_set2)
+
+# Access components:
+#results$loss
+#results$accuracy
+kable(t(round(results$confusion_matrix$byClass[, -c(3,4,9,10)], 2)))
+```
+
+The classification metrics across the five avalanche hazard classes indicate some improvement for minority classes, but the model remains heavily biased toward Low, Moderate, and Considerable−. Low continues to show strong performance, with sensitivity of 0.83 and specificity of 0.97. Precision is 0.94, and balanced accuracy reaches 0.90, reflecting reliable detection of this majority class.Moderate is similarly well detected, with sensitivity 0.74, specificity 0.86, and precision 0.70. Balanced accuracy of 0.80 indicates reasonable overall performance, though some misclassifications remain.
+
+Considerable− achieves solid sensitivity of 0.81 and specificity of 0.85, but precision is lower at 0.59, indicating that a notable fraction of predictions for this class are actually from other categories. Balanced accuracy of 0.83 shows improvement over the previous model, but predictions remain noisy. Considerable+ sees minimal improvement, with sensitivity just 0.06, specificity 0.99, and precision 0.22. Balanced accuracy of 0.52 shows the model is barely detecting this class. High also shows some gains, with sensitivity 0.20, specificity 0.99, and precision 0.33, giving a balanced accuracy of 0.60. While this represents progress compared to complete neglect in the previous iteration, detection for rare classes is still very weak and unreliable.
+
+The accuracy remains around 0.75, similar to the previous model, but the addition of some correct predictions for Considerable+ and High demonstrates partial learning of minority classes.
+
+## Model 3: Snowpack Model
+
+The model has an accuracy of 75.11% when you apply (*Max.Temp.Grad:Snow.Temp*)
+
+```{r}
+#| fig-align: "center"
+
+#-----------------------------
+# Get features names belonging to predictor set in consideration
+#-----------------------------
+predictors <- avalanche_original %>% 
+  select(
+    Max.Temp.Grad:Snow.Temp, 
+    -all_of(high_missing_features),
+    Area, FAH) %>%
+  names() %>% sort()
+
+predictor_set3 <- adjust_names(predictors, var_names, avalanche_clean)
+
+#-----------------------------
+# Load already trained model
+#-----------------------------
+# Adjust the code in the file nn_hyperparameter_tuning.R for tuning
+# Note: We've already trained our model, so here we just load the results
+components <- load_model_components("model3")
+model3 <- components$model
+
+# Plot history
+plot_history(components$history)
+
+#-----------------------------
+# Evaluation of the model
+#-----------------------------
+results <- evaluate_model(model3, x_test, y_test, predictor_set3)
+
+# Access components:
+kable(t(round(results$confusion_matrix$byClass[, -c(3,4,9,10)], 2)))
+```
+
+The classification metrics across the five avalanche hazard classes show a pattern similar to previous models, with strong detection of majority classes (Low, Moderate, Considerable−) but inconsistent recognition of minority classes (Considerable+, High). Low maintains solid performance, with sensitivity of 0.79 and specificity of 0.98. Precision is very high at 0.97, and balanced accuracy reaches 0.89, indicating reliable classification of this majority class.Moderate demonstrates moderate detection, with sensitivity 0.75, specificity 0.85, and precision 0.69. Balanced accuracy of 0.80 reflects reasonable performance, although some misclassification persists.
+
+Considerable− shows high sensitivity at 0.89 and specificity of 0.84, though precision is only 0.59, suggesting considerable confusion with other classes. Balanced accuracy of 0.86 indicates that the model reliably identifies most true instances, but errors remain.Considerable+ is completely neglected, with sensitivity and detection rate at 0.00. Specificity remains 1.00, but this is meaningless since the model never predicts this class. Precision and F1-scores are undefined, and balanced accuracy defaults to 0.50, reflecting total failure for this class.High shows some improvement compared to the previous iteration, with sensitivity 0.30, specificity 0.996, and precision 0.50. Balanced accuracy of 0.65 indicates partial detection, though the model still misses the majority of true High instances.
+
+The accuracy is 0.75, similar to prior models. While majority classes dominate predictions and are reliably detected, minority classes remain poorly recognized.
+
+## Model 4: Full Model
+
+The model has an accuracy of 74,59% when you apply all the predictors.
+
+```{r}
+#| fig-align: "center"
+
+#-----------------------------
+# Load already trained model
+#-----------------------------
+# Adjust the code in the file nn_hyperparameter_tuning.R for tuning
+# Note: We've already trained our model, so here we just load the results
+components <- load_model_components("model4")
+model4 <- components$model
+
+# Plot history
+plot_history(components$history)
+
+#-----------------------------
+# Evaluation of the model
+#-----------------------------
+results <- evaluate_model(model4, x_test, y_test)
+
+# Access components:
+kable(t(round(results$confusion_matrix$byClass[, -c(3,4,9,10)], 2)))
+```
+
+The classification metrics for the Full Model indicate persistent class imbalance, with strong performance for majority classes (Low, Moderate, Considerable−) and some improvement in detecting minority classes (Considerable+, High).Low shows robust detection, with sensitivity of 0.82, specificity 0.97, and precision 0.94. Balanced accuracy of 0.89 confirms reliable performance for this majority class.Moderate maintains moderate performance, with sensitivity 0.74, specificity 0.85, and precision 0.69. Balanced accuracy of 0.80 suggests reasonable detection, though some misclassification remains.
+
+Considerable− demonstrates slightly lower sensitivity (0.78) compared to prior models, specificity of 0.86, and precision of 0.60. Balanced accuracy of 0.82 indicates the model can identify a majority of instances, but confusion with other classes persists. Considerable+ shows modest improvement, with sensitivity 0.10, specificity 0.99, and precision 0.33. Balanced accuracy of 0.55 indicates minimal detection of this minority class, though performance is still weak. High is detected slightly better than before, with sensitivity 0.40, specificity 0.99, and precision 0.38. Balanced accuracy of 0.70 suggests that the model is beginning to recognize rare, high-risk instances, though it still misses the majority of true cases.
+
+The accuracy of 0.75 is comparable to earlier models. While majority classes dominate predictions and are consistently well-classified, the Full Model demonstrates only limited success in capturing minority classes. This highlights that even with all input features included, class imbalance remains a major limitation, and the model cannot reliably predict high-severity avalanche hazards.
+
+# Conclusion
+
+Across all four models Model 1, Model 2, Model 3, and the Full Model the overall accuracy remains relatively stable around 0.75, the models can reliably classify the majority avalanche hazard categories (Low, Moderate, and Considerable−). Low consistently achieves the highest sensitivity, precision, and balanced accuracy, indicating that the models strongly favor this majority class. Moderate and Considerable− are detected reasonably well, though with lower precision, reflecting misclassification and confusion between these middle categories.
+
+In contrast, the minority hazard classes—Considerable+ and High—remain challenging for all models. Sensitivity for these classes is extremely low in most cases, with some minor improvement in later models, particularly the Full Model, which achieves a sensitivity of 0.10 for Considerable+ and 0.40 for High. However, these gains are insufficient to reliably capture rare but critical hazard levels. Precision and balanced accuracy for these classes remain poor, highlighting that even when predictions are made, they are often incorrect.
+
+The models exhibit a clear majority-class bias: strong performance for common hazard levels comes at the expense of minority classes, limiting the practical utility of these models for comprehensive avalanche hazard assessment. While inclusion of additional features in the Full Model provides slight improvements for rare classes, significant misclassification persists.
+
+# References
+
+1.  McCulloch, W.S., Pitts, W. A logical calculus of the ideas immanent in nervous activity. *Bulletin of Mathematical Biophysics* **5**, 115–133 (1943). <https://doi.org/10.1007/BF02478259>
+
+2.  Stephens, J & Adams, E. & Huo, X & Dent, J & Hicks, J & Mccartf, D. USE OF NEURAL NETWORKS IN AVALANCHE HAZARD FORECASTING.
+
+3.  Bahram Choubin, Moslem Borji, Amir Mosavi, Farzaneh Sajedi-Hosseini, Vijay P. Singh,Shahaboddin Shamshirband,Snow avalanche hazard prediction using machine learning methods,Journal of Hydrology,Volume 577,2019,123929,ISSN0022-1694, <https://doi.org/10.1016/j.jhydrol.2019.123929.(https://www.sciencedirect.com/science/article/pii/S0022169419306493)>
+
+4.  Fedkin, Yevgeniy & Denissova, N.F. & Daumova, Gulzhan & Chettykbayev, Ruslan & Rakhmetullina, Saule. (2025). Avalanche Hazard Prediction in East Kazakhstan Using Ensemble Machine Learning Algorithms. Algorithms. 18. 505. 10.3390/a18080505.
+
+5.  Jordy Hendrikx, Matt Murphy, Terry Onslow, Classification trees as a tool for operational avalanche forecasting on the Seward Highway, Alaska, Cold Regions Science and Technology, Volume 97, 2014, Pages 113-120, ISSN 0165-232X, <https://doi.org/10.1016/j.coldregions.2013.08.009.> (<https://www.sciencedirect.com/science/article/pii/S0165232X13001250)>
+
+6.  Viallon-Galinier, L., Hagenmuller, P., and Eckert, N.: Combining modelled snowpack stability with machine learning to predict avalanche activity, The Cryosphere, 17, 2245–2260, https://doi.org/10.5194/tc-17-2245-2023, 2023.
+
+7.  Kala, Manish & Jain, Shweta & Singh, Amreek & Krishnan, Narayanan. (2024). Addressing class imbalance in avalanche forecasting. Cold Regions Science and Technology. 231. 104411. 10.1016/j.coldregions.2024.104411.
+
+\newpage
+
+# LLM Usage
+
+We used the LLM to format most of the work to make it academically sound. The LLM's performance depended on the clarity of the prompts it is given e.g If you were to ask something regarding the use of Avalanche forecasting it gives a lot of ways to do it like GIS techniques, Geophysics and other scientific ways to model it but if you are specific on what you need it performs better e.g what statistical techniques can I use? The way we understand how to use the LLM is to treat it like a child and give it simple straight foward prompts.
+
+## Example of use
+
+### Prompts
+
+-   Write this passage in an academic manner
+
+-   Be straight forward
+
+-   Ensure information flow
+
+### Result [chatGPT](https://chatgpt.com/c/68d9e86c-9cf0-8331-b128-63610104fdfd)
+
+We used a large language model (LLM) to format the majority of the work, ensuring it met academic standards. The performance of the LLM was highly dependent on the clarity and specificity of the prompts provided. For example, a broad prompt about avalanche forecasting yields a wide range of responses, including GIS techniques, geophysical methods, and other scientific modeling approaches. However, when prompts were specific, such as asking which statistical techniques could be applied, the LLM produced more precise and relevant outputs. Based on this experience, the most effective way to use the LLM is to provide clear, simple, and direct prompts.
+
+\newpage
+
+# Appendix
+
+```{r}
+#| label: tbl-summary-numeric
+#| tbl-cap: "Summary of descriptive statistics for all continuous variables"
+
+n <- nrow(avalanche_summary$numerical)
+
+avalanche_summary$numerical %>%
+  rename_with(~ str_to_sentence(.x)) %>%
+  mutate(across(where(is.numeric), ~ number(., accuracy = 0.1))) %>%
+  kable(
+    booktabs = TRUE,
+    longtable = TRUE,
+    align = c("l", rep("r", ncol(avalanche_summary$numerical) - 1))
+  ) %>%
+  kable_styling(latex_options = c("repeat_header")) %>%
+  {
+    tbl <- .
+    for (i in seq(1, n, by = 4)) {
+      tbl <- tbl %>% pack_rows(
+        label = "", 
+        start_row = i, 
+        end_row = min(i+3, n), 
+        latex_gap_space = ifelse(i == 1, "-1em", "0em")  # No gap for first group
+      )
+    }
+    tbl
+  }
+```
+
+\newpage
+
+\begin{titlepage}
+
+\centering
+
+\vspace{5cm}
+{\Huge \bfseries Plagiarism Declaration\par}
+\vspace{1cm}
+
+\begin{center}
+\includegraphics[width=6cm]{images/picture1.jpg}
+\end{center}
+
+{\Large Department of Statistical Sciences\par}
+\vspace{1cm}
+
+% Left-aligned numbered statements
+\begin{flushleft}
+1. {\normalsize We know that plagiarism is wrong. Plagiarism is to use another’s work and pretend that it is one’s own.\par}
+
+2. {\normalsize We have used a generally accepted citation and referencing style. Each contribution to, and quotation in, this tutorial/report/project from the work(s) of other people has been attributed, and has been cited and referenced.\par}
+
+3. {\normalsize This tutorial/report/project is our own work.\par}
+
+4. {\normalsize We have not allowed, and will not allow, anyone to copy our work with the intention of passing it off as their own work.\par}
+
+5. {\normalsize We acknowledge that copying someone else’s assignment or essay, or part of it, is wrong, and declare that this is our own work.\par}
+\end{flushleft}
+
+\vspace{0.5cm}
+\end{titlepage}
